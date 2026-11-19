@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "compat-persisted-state",
+      "trigger": "Session storage, config schema, or persisted state fields are modified",
+      "fileGlobs": ["src/storage/**", "src/state/**", "src/config/**"],
+      "check": "Verify that newly added fields have safe defaults when loading older persisted files produced by previous versions.",
+      "history": "Example rule inspired by real backward-compatibility incidents"
+    },
+    {
+      "id": "idempotent-retry-or-migration",
+      "trigger": "Database migrations, job retries, or webhook handlers are modified",
+      "fileGlobs": ["migrations/**", "src/jobs/**", "src/webhooks/**"],
+      "check": "Confirm executing the same operation twice produces the exact same end state without duplicate side effects.",
+      "history": "Prevents duplicate writes during network retries"
+    },
+    {
+      "id": "no-secret-leak-in-logs",
+      "trigger": "Logging, telemetry, or error formatting logic is changed",
+      "fileGlobs": ["src/logger/**", "src/telemetry/**", "src/middleware/**"],
+      "check": "Ensure API keys, auth headers, tokens, and PII are redacted before writing to stdout or log files.",
+      "history": "Prevents credential exposure in CI or production logs"
+    }
+  ]
+}

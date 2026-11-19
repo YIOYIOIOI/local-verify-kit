@@ -1,0 +1,16 @@
+{
+  "baseBranch": "main",
+  "delegation": {
+    "verify-init": "ask",
+    "verify-run": "ask",
+    "diff-gate": "ask",
+    "isolated-review": "ask",
+    "verify-retro": "ask"
+  },
+  "commitCheck": {
+    "mode": "observe",
+    "requireAny": ["verify-run", "isolated-review"],
+    "maxAgeMinutes": 120,
+    "maxBlocksPerSession": 2
+  }
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="36" y1="28" x2="220" y2="228" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D97757"/>
+      <stop offset="55%" stop-color="#2B5B84"/>
+      <stop offset="100%" stop-color="#1F8A5B"/>
+    </linearGradient>
+  </defs>
+  <rect x="26" y="26" width="204" height="204" rx="44" fill="url(#shieldGrad)"/>
+  <rect x="38" y="38" width="180" height="180" rx="34" fill="#141413" fill-opacity="0.82"/>
+  <path d="M84 132 L113 161 L176 96" stroke="#FAF9F5" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="84" cy="132" r="7" fill="#D97757"/>
+  <circle cx="176" cy="96" r="7" fill="#4ADE80"/>
+</svg>

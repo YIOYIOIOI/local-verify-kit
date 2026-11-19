@@ -1,0 +1,16 @@
+{
+  "name": "local-verify-kit",
+  "version": "0.1.0",
+  "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and local retrospectives with cross-agent delegation.",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "verification-loop",
+    "code-review",
+    "e2e-testing",
+    "claude-code",
+    "codex",
+    "multi-agent",
+    "local-first"
+  ]
+}

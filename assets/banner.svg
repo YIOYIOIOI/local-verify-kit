@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1200" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#141413"/>
+      <stop offset="55%" stop-color="#1D2228"/>
+      <stop offset="100%" stop-color="#14231D"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D97757"/>
+      <stop offset="50%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#4ADE80"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="320" rx="20" fill="url(#bgGrad)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accentGrad)"/>
+
+  <g transform="translate(64, 72)">
+    <rect x="0" y="0" width="112" height="112" rx="26" fill="url(#accentGrad)"/>
+    <rect x="8" y="8" width="96" height="96" rx="20" fill="#141413"/>
+    <path d="M32 58 L48 74 L82 40" stroke="#FAF9F5" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="208" y="122" fill="#FAF9F5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="48" font-weight="700" letter-spacing="-0.8">
+    Local Verify Kit
+  </text>
+  <text x="208" y="164" fill="#C7C3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21">
+    Modular, Local-First Verification Skills &amp; Cross-Agent Delegation for AI Coding Agents
+  </text>
+
+  <g transform="translate(208, 200)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600">
+    <rect x="0" y="0" width="136" height="34" rx="17" fill="#2A2320" stroke="#D97757"/>
+    <text x="68" y="22" text-anchor="middle" fill="#F4A285">verify-init</text>
+
+    <rect x="152" y="0" width="136" height="34" rx="17" fill="#29241B" stroke="#E09B2D"/>
+    <text x="220" y="22" text-anchor="middle" fill="#F3C16B">verify-run</text>
+
+    <rect x="304" y="0" width="130" height="34" rx="17" fill="#261F2D" stroke="#A78BFA"/>
+    <text x="369" y="22" text-anchor="middle" fill="#C4B5FD">diff-gate</text>
+
+    <rect x="450" y="0" width="176" height="34" rx="17" fill="#1A2633" stroke="#60A5FA"/>
+    <text x="538" y="22" text-anchor="middle" fill="#93C5FD">isolated-review</text>
+
+    <rect x="642" y="0" width="152" height="34" rx="17" fill="#182A21" stroke="#4ADE80"/>
+    <text x="718" y="22" text-anchor="middle" fill="#86EFAC">verify-retro</text>
+  </g>
+
+  <text x="208" y="274" fill="#8C887E" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15">
+    Zero API Keys Required · Zero Hard-Implanted Hooks · Works with Claude Code, Codex, Cursor, Antigravity &amp; Any Agent Skills Host
+  </text>
+</svg>

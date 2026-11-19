@@ -1,0 +1,45 @@
+{
+  "name": "local-verify-kit",
+  "version": "0.1.0",
+  "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and git-history retrospectives with cross-agent delegation.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "lint:skills": "node test/validate-skills.mjs",
+    "check": "npm run lint:skills && npm test"
+  },
+  "keywords": [
+    "agent-skills",
+    "ai-coding-agent",
+    "verification-loop",
+    "code-review",
+    "isolated-review",
+    "e2e-verification",
+    "smoke-testing",
+    "diff-gate",
+    "claude-code",
+    "codex",
+    "cursor",
+    "multi-agent",
+    "cross-agent-delegation",
+    "local-first",
+    "flaky-tests",
+    "review-md",
+    "developer-tools"
+  ],
+  "files": [
+    "plugin.json",
+    ".claude-plugin/",
+    "skills/",
+    "scripts/",
+    "examples/",
+    "assets/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ]
+}
