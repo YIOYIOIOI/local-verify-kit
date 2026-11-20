@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/banner.svg" alt="Local Verify Kit — 面向 AI 编程 Agent 的模块化本地优先验证套件" width="100%" />
+  <img src="./assets/social-preview.png" alt="Local Verify Kit — 面向 AI 编程 Agent 的模块化本地优先验证套件" width="100%" />
 </p>
 
 <p align="center">

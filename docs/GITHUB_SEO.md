@@ -35,7 +35,8 @@ open-source
 
 ## 3. Social Preview Image
 
-- Upload a PNG render of `assets/banner.svg` (`1280x640` recommended for GitHub OpenGraph cards) under **Settings → General → Social preview**.
+- Upload `assets/social-preview.png` (pre-rendered exact `1280x640` PNG, 2:1 GitHub OpenGraph ratio) directly under **Settings → General → Social preview**.
+- For square plugin cards, npm/marketplace listings, or repo avatars, use `assets/logo.png` (`512x512` PNG) or `assets/logo.svg`.
 
 ## 4. Release & Community Launch Checklist
 

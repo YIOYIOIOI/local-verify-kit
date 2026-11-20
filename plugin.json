@@ -3,7 +3,7 @@
   "displayName": "Local Verify Kit",
   "version": "0.1.0",
   "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and git-history retrospectives with cross-agent delegation (Codex, Claude, or subagents).",
-  "logo": "assets/logo.svg",
+  "logo": "assets/logo.png",
   "suggestedPrompts": [
     "Use verify-init to inspect this repo and scaffold a stress-tested project verify skill",
     "Use verify-run to run local fast checks and end-to-end smoke verification (or delegate to codex)",

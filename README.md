@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/banner.svg" alt="Local Verify Kit — Modular Local-First Verification Skills for AI Coding Agents" width="100%" />
+  <img src="./assets/social-preview.png" alt="Local Verify Kit — Modular Local-First Verification Skills for AI Coding Agents" width="100%" />
 </p>
 
 <p align="center">
