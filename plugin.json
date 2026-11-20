@@ -2,6 +2,9 @@
   "name": "local-verify-kit",
   "displayName": "Local Verify Kit",
   "version": "0.1.0",
+  "author": "YIOYIOIOI",
+  "homepage": "https://github.com/YIOYIOIOI/local-verify-kit",
+  "repository": "https://github.com/YIOYIOIOI/local-verify-kit",
   "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and git-history retrospectives with cross-agent delegation (Codex, Claude, or subagents).",
   "logo": "assets/logo.png",
   "suggestedPrompts": [

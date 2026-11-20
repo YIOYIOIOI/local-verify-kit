@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/YIOYIOIOI/local-verify-kit/actions/workflows/ci.yml"><img src="https://github.com/YIOYIOIOI/local-verify-kit/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/Agent_Skills-开放标准-2B5B84?style=flat-square" alt="开放 Agent Skills 标准" />
   <img src="https://img.shields.io/badge/零外部依赖-Node_%3E%3D18-1F8A5B?style=flat-square" alt="零依赖" />
   <img src="https://img.shields.io/badge/零硬植入_Hook-仅在_Skill_提醒-D97757?style=flat-square" alt="零硬植入 Hook" />
@@ -85,10 +86,10 @@ flowchart LR
 ### 方式 1：通过 `npx skills` 安装（通用多端）
 ```bash
 # 安装全部模块
-npx skills add <owner>/local-verify-kit
+npx skills add YIOYIOIOI/local-verify-kit
 
 # 或只装其中任意 1 个独立 Skill（每个都可独立运行）
-npx skills add <owner>/local-verify-kit --skill isolated-review
+npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 ```
 
 ### 方式 2：作为 Plugin / 本地目录直接使用

@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/YIOYIOIOI/local-verify-kit/actions/workflows/ci.yml"><img src="https://github.com/YIOYIOIOI/local-verify-kit/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/Agent_Skills-Open_Standard-2B5B84?style=flat-square" alt="Open Agent Skills Standard" />
   <img src="https://img.shields.io/badge/Zero_Dependencies-Node_%3E%3D18-1F8A5B?style=flat-square" alt="Zero Dependencies" />
   <img src="https://img.shields.io/badge/Hooks-Non--Intrusive_(Zero_Hard_Hooks)-D97757?style=flat-square" alt="Zero Hard Hooks" />
@@ -85,10 +86,10 @@ Because `local-verify-kit` follows the open **Agent Skills standard** with zero 
 ### Option 1: Install via `npx skills` (Universal — Claude Code, Codex, Cursor, Windsurf, etc.)
 ```bash
 # Install all modular skills
-npx skills add <owner>/local-verify-kit
+npx skills add YIOYIOIOI/local-verify-kit
 
 # Or install just ONE standalone skill (every skill works independently!)
-npx skills add <owner>/local-verify-kit --skill isolated-review
+npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 ```
 
 ### Option 2: Install as a Plugin
