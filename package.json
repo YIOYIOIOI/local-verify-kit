@@ -16,7 +16,7 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test",
     "lint:skills": "node test/validate-skills.mjs",
     "check": "npm run lint:skills && npm test"
   },
