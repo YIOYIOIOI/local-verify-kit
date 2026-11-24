@@ -2,11 +2,14 @@
 /**
  * Commit Readiness & Verification Stamp Checker (zero dependencies, harness-agnostic).
  *
- * Called directly by the agent (on skill reminder) or optionally from a user's
- * standard `.git/hooks/pre-commit` script. Never requires a harness-specific hook.
+ * Supports per-project profiles in <repo>/.verify/config.json:
+ *   - missing config or "profile": "off"  -> silent allow, zero noise on simple repos
+ *   - "profile": "lite"                   -> defaults to requiring only ["verify-run"]
+ *   - "profile": "full"                   -> defaults to requiring ["verify-run", "isolated-review"]
+ *   - custom "modules": [...]             -> overrides active modules
  *
  * Exit codes:
- *   0 - ready / allowed (including observe mode, off mode, exempt reason, or escape hatch)
+ *   0 - ready / allowed (including profile off, observe mode, off mode, exempt reason, or escape hatch)
  *   1 - blocked in enforce mode (fresh verification evidence missing)
  *
  * Usage:
@@ -85,23 +88,63 @@ function appendAuditLog(verifyDir, entry) {
   }
 }
 
+function resolveProfile(config) {
+  if (!config) return 'off';
+  if (typeof config.profile === 'string') {
+    const p = config.profile.toLowerCase();
+    if (['off', 'lite', 'full'].includes(p)) return p;
+  }
+  // Backward compatibility: if v0.1.0 config explicitly configured commitCheck/commitGate without profile
+  if (config.commitCheck || config.commitGate || Array.isArray(config.modules)) {
+    return 'full';
+  }
+  return 'off';
+}
+
+function resolveRequireAny(profile, config, gateCfg) {
+  if (Array.isArray(gateCfg.requireAny) && gateCfg.requireAny.length > 0) {
+    return gateCfg.requireAny;
+  }
+  if (Array.isArray(config.modules) && config.modules.length > 0) {
+    const valid = config.modules.filter((m) => ['verify-run', 'isolated-review', 'diff-gate'].includes(m));
+    if (valid.length > 0) return valid;
+  }
+  if (profile === 'lite') return ['verify-run'];
+  return ['verify-run', 'isolated-review'];
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repoRoot = tryGit(['rev-parse', '--show-toplevel'], opts.cwd);
   if (!repoRoot) {
-    process.stdout.write(JSON.stringify({ status: 'allow', reason: 'Not a git repository' }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ status: 'allow', action: 'allow', reason: 'Not a git repository' }, null, 2) + '\n');
     return;
   }
 
   const verifyDir = path.join(repoRoot, '.verify');
-  const config = safeReadJson(path.join(verifyDir, 'config.json')) || {};
+  const config = safeReadJson(path.join(verifyDir, 'config.json'));
+  const profile = resolveProfile(config);
+
+  if (profile === 'off') {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          profile: 'off',
+          status: 'allow',
+          action: 'profile_off',
+          note: 'Verification profile is off (no .verify/config.json or profile="off"). Skipping commit check.',
+        },
+        null,
+        2
+      ) + '\n'
+    );
+    return;
+  }
+
   const gateCfg = config.commitCheck || config.commitGate || {};
   const mode = gateCfg.mode || 'observe';
-
-  const requireAny =
-    Array.isArray(gateCfg.requireAny) && gateCfg.requireAny.length > 0
-      ? gateCfg.requireAny
-      : ['verify-run', 'isolated-review'];
+  const requireAny = resolveRequireAny(profile, config, gateCfg);
   const maxAgeMinutes = Number(gateCfg.maxAgeMinutes || 120);
   const maxBlocks = Number(gateCfg.maxBlocksPerSession || 2);
 
@@ -136,7 +179,9 @@ function main() {
 
   const baseRecord = {
     timestamp: new Date().toISOString(),
+    profile,
     mode,
+    requireAny,
     headSha,
     stamps: stamps.length > 0 ? stamps : ['none'],
     satisfied,
@@ -156,7 +201,7 @@ function main() {
       ...baseRecord,
       status: 'allow',
       action: 'observe_would_block',
-      note: `Observe mode: commit allowed, but no fresh verification evidence found for HEAD ${headSha.slice(0, 7)}.`,
+      note: `Observe mode (${profile}): commit allowed, but no fresh verification evidence found for HEAD ${headSha.slice(0, 7)}.`,
     };
     appendAuditLog(verifyDir, out);
     process.stdout.write(JSON.stringify(out, null, 2) + '\n');
@@ -185,7 +230,7 @@ function main() {
     action: 'block',
     blockNumber: nextBlocks,
     maxBlocksPerSession: maxBlocks,
-    reason: `Missing fresh verification evidence (${requireAny.join(' or ')}) for HEAD ${headSha.slice(0, 7)}. Run verify-run/isolated-review or add [skip-verify: <reason>] in your commit message.`,
+    reason: `Missing fresh verification evidence (${requireAny.join(' or ')}) for HEAD ${headSha.slice(0, 7)}. Run an enabled check or add [skip-verify: <reason>] in your commit message.`,
   };
   appendAuditLog(verifyDir, out);
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');

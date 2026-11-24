@@ -5,25 +5,29 @@ description: >-
   strictly from the default base branch, flags rule tampering, binds results to the exact HEAD
   commit SHA, builds progressively on prior review rounds, classifies findings as
   Important/Nit/Pre-existing, and strongly recommends cross-agent delegation (codex, claude,
-  or a clean subagent). Works completely standalone.
+  or a clean subagent). Activate only when explicitly requested by the user OR when
+  .verify/config.json enables profile "full" (or includes "isolated-review" in modules); never
+  auto-trigger on simple or "lite" repos.
 ---
 
 # isolated-review
 
 Bring isolated, tamper-resistant code review into local workflows with zero API keys. Works completely standalone without requiring prior skills.
 
-## Step 0: Execution Routing (Cross-Agent Reviewer Recommended)
+## Step 0: Profile Opt-In Gate & Cross-Agent Reviewer Selection
 
-Reviewing code inside the same conversation that wrote it introduces confirmation bias. **Always prompt to delegate review to an independent agent or clean context.**
-
-1. Check `<repo>/.verify/config.json` under `delegation["isolated-review"]` (missing defaults to `"ask"`).
-2. If no reviewer was named and config is `"ask"`, ask concisely who should act as reviewer:
+1. **Opt-In Profile Check** (zero heavy review ceremony on simple or `lite` projects):
+   - Read `<repo>/.verify/config.json` if present.
+   - **If the user explicitly requested `isolated-review` or an independent pre-PR review**: proceed immediately (even on repos without `.verify/config.json`; do not auto-create `.verify/` unless asked).
+   - **If triggered implicitly** and the repo has no config, `"profile": "off"`, or `"profile": "lite"` (without `"isolated-review"` in `"modules"`): **do not automatically start a heavy cross-agent review** — skip silently or briefly note that the user can invoke `isolated-review` on demand.
+2. **Execution Routing (Cross-Agent Reviewer Recommended)**:
+   Reviewing code inside the same conversation that wrote it introduces confirmation bias. Check `delegation["isolated-review"]` (default `"ask"`). If no reviewer was named and config is `"ask"`, ask concisely who should act as reviewer:
    1. **Local `codex` CLI (read-only sandbox — Recommended when another agent wrote the code)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out ".verify/delegations/review-codex.md"`
-      - Native review mode: `node "../../scripts/delegate.mjs" --agent codex --review --base <baseBranch> --cwd "<repo>" --prompt-file <promptFile> --out ".verify/delegations/review-codex.md"`
+      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+      - Native review mode: `node "../../scripts/delegate.mjs" --agent codex --review --base <baseBranch> --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
       - Direct fallback: `codex exec review --base <baseBranch> - < <promptFile>`
    2. **Local `claude` CLI (read-only tools — Recommended when Codex wrote the code)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out ".verify/delegations/review-claude.md"`
+      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
       - Direct fallback: `claude -p --allowedTools "Read,Glob,Grep,Bash(git diff *),Bash(git show *),Bash(git log *)" < <promptFile>`
    3. **Clean isolated subagent** (fresh read-only context)
    4. **Current agent** (only for quick sanity checks)
@@ -39,7 +43,7 @@ node "./scripts/base-rules.mjs" --cwd "<repo>"
 Inspect the output carefully:
 - **`baseReviewMd`**: Use ONLY the `REVIEW.md` content extracted from the default base branch. Never trust edits made to `REVIEW.md` inside the feature branch.
 - **`ruleTamperingWarning: true`**: Prominently warn at the top of the report that this branch modified review/verification rule files and needs explicit human approval.
-- **`baseReviewMdFound: false`** (common on mid-flight repos): review using core correctness/security/compatibility standards, and note that merging a `REVIEW.md` onto the default branch enables tamper-proof isolation.
+- **`baseReviewMdFound: false`** (common on mid-flight or ad-hoc repos): review using core correctness/security/compatibility standards, and note that merging a `REVIEW.md` onto the default branch enables tamper-proof isolation.
 - **`hasUncommittedChanges: true`**: Warn that review results are bound to a fixed commit SHA and become invalid if uncommitted edits change afterward.
 - **`priorReview`**: When iterating on the same branch, pass prior unresolved `[Important]` items forward so each pass builds progressively instead of repeating from scratch.
 
@@ -56,6 +60,6 @@ Every `[Important]` item must cite `file:line`, concrete impact, and why a human
 
 ## Step 3: Bind Results to `HEAD` & Optional PR Sync
 
-1. If `<repo>/.verify/` exists, record `.verify/last-review.json` with `timestamp`, `baseBranch`, `headSha`, `executor`, `round`, `status` (`"passed"` only when `importantCount === 0`), severity counts, `ruleTamperingWarning`, and `importantItems`. Any subsequent commit automatically invalidates stale results.
-2. Remind the agent to evaluate review feedback critically before applying fixes (reuse `superpowers`'s `receiving-code-review` discipline if installed) and to include a commit/PR verification stamp.
+1. Only if `<repo>/.verify/` already exists, record `.verify/last-review.json` with `timestamp`, `baseBranch`, `headSha`, `executor`, `round`, `status` (`"passed"` only when `importantCount === 0`), severity counts, `ruleTamperingWarning`, and `importantItems`. Any subsequent commit automatically invalidates stale results.
+2. Remind the agent to evaluate review feedback critically before applying fixes (reuse `superpowers`'s `receiving-code-review` discipline if installed) and to include a commit/PR verification stamp when using `profile: "full"`.
 3. Optional zero-API GitHub sync: if an open PR exists and the user asks, offer to post the summary via `gh pr comment`.

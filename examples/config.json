@@ -1,4 +1,5 @@
 {
+  "profile": "full",
   "baseBranch": "main",
   "delegation": {
     "verify-init": "ask",

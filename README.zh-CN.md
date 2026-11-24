@@ -99,6 +99,25 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 
 ---
 
+## 全局安装一次，按项目轻重开关（`off` / `lite` / `full`）
+
+你**完全不需要**为每个仓库单独重复安装 Skill——只需把 `local-verify-kit` **装在全局一次**，不同体量的项目通过极简的 `.verify/config.json` 决定启用哪一档：
+
+| 档位（Profile） | 项目里需要放什么？ | 默认启用模块 | 适用项目 |
+| :--- | :--- | :--- | :--- |
+| **`off`（默认）** | **什么都不用放**（不建 `.verify/`） | 零自动触发、零打扰；口头显式点名随时可用 | 简单脚本、临时 Demo、小工具 |
+| **`lite`（轻量）** | `{ "profile": "lite" }`（[示例](./examples/config.lite.json)） | 仅 **`verify-run`**（快检 + 真实冒烟 + 3 轮熔断） | 中小型个人项目（跳过重型 PR 独立复审） |
+| **`full`（完整）** | `{ "profile": "full", ... }`（[示例](./examples/config.json)） | `verify-run`、`diff-gate`、`isolated-review`、`verify-retro` | 核心生产项目、多人协作仓库 |
+| **自定义 `modules`** | `{ "profile": "lite", "modules": ["verify-run", "isolated-review"] }` | 按列表精准启用任意组合 | 按需自由拼装 |
+
+**口头指令永远高于项目档位**：
+* 哪怕是没配任何文件的简单项目，某次改了核心逻辑只需说一句 *“这次用 `isolated-review` 交给 codex 审一遍”* → 立刻单次生效，且不会乱建 `.verify/`；
+* 哪怕是 `full` 项目，改一行文档错别字直接说 *“小改动跳过验证”* → 立刻跳过。
+
+*（可选进阶：如果你希望在宿主层面彻底禁止隐式触发，Claude Code 可在 frontmatter 加 `disable-model-invocation: true`，Codex 可在 `agents/openai.yaml` 加 `allow_implicit_invocation: false`。）*
+
+---
+
 ## 跨 Agent 委派机制
 
 同一个对话里既写代码又当裁判，极易陷入思维惯性。本套件每个执行 Skill 开头都内置了**执行者路由确认**：
@@ -112,6 +131,7 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 
 ```json
 {
+  "profile": "full",
   "baseBranch": "main",
   "delegation": {
     "verify-init": "ask",

@@ -20,6 +20,7 @@ for (const rel of [
   '.claude-plugin/plugin.json',
   'package.json',
   'examples/config.json',
+  'examples/config.lite.json',
   'examples/reliability-checklist.json',
 ]) {
   const abs = path.join(ROOT, rel);

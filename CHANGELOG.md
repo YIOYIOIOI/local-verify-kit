@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-11-24
+
+### Added
+- **Per-Project Verification Profiles (`off` / `lite` / `full`) & Custom `modules`**: install `local-verify-kit` globally once, keep simple repos completely quiet by default (no `.verify/config.json` = `off`), opt medium repos into `lite` (`verify-run` only), and enable `full` on core repositories — while explicit user commands always override the profile for one-off runs.
+- `examples/config.lite.json` minimal starter config.
+- Automated integration tests covering missing config, `profile: "off"`, and `profile: "lite"` enforcement semantics in `commit-check.mjs`.
+
+### Changed
+- Tightened opt-in activation guardrails across all 6 `SKILL.md` modules so heavy workflows (`isolated-review`, `diff-gate`, `verify-retro`) never auto-trigger on simple or `lite` repositories.
+- Updated `verify-init` to ask for `lite` vs `full` profile upfront (skipping `REVIEW.md` and diff checklists for `lite` projects).
+- Updated `commit-check.mjs` to treat missing `.verify/config.json` or `profile: "off"` as silent pass without writing files, while maintaining full backward compatibility with `v0.1.0` configs.
+
 ## [0.1.0] - 2026-11-19
 
 ### Added

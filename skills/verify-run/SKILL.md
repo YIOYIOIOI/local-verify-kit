@@ -3,27 +3,30 @@ name: verify-run
 description: >-
   Run local cheap checks and real end-to-end smoke verification for current changes, enforcing a
   3-round failure fuse, zero tolerance for flaky workarounds, and writing fresh evidence to
-  .verify/last-run.json. Prompts whether to delegate verification to another agent (such as codex,
-  claude, or a clean subagent) and reminds about verification stamps before git commit. Works
-  completely standalone.
+  .verify/last-run.json. Activate only when explicitly requested by the user OR when the repo's
+  .verify/config.json enables profile "lite"/"full" (or includes "verify-run" in modules); stay
+  silent on simple repos with no config. Supports delegating to codex, claude, or a clean subagent.
 ---
 
 # verify-run
 
 Execute fast checks and real end-to-end smoke verification against live changes, producing objective evidence. Completely standalone — does not require any other skill to have run first.
 
-## Step 0: Execution Routing (Cross-Agent Delegation Prompt)
+## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
 
-1. Check `<repo>/.verify/config.json` under `delegation["verify-run"]` (missing defaults to `"ask"`).
-2. If the user did not specify an executor and the setting is `"ask"`, ask concisely before running who should execute verification:
+1. **Opt-In Profile Check** (prevents over-triggering on simple repos when installed globally):
+   - Read `<repo>/.verify/config.json` if it exists.
+   - **If the user explicitly asked for `verify-run` / smoke verification**: proceed immediately (explicit user intent always overrides project profile; do not auto-create `.verify/` if it does not exist).
+   - **If triggered implicitly** and `.verify/config.json` is absent or sets `"profile": "off"` (or defines a custom `"modules"` list excluding `"verify-run"`): **do not run heavy verification automatically** — stay out of the way unless the user asks.
+2. **Execution Routing**: check `delegation["verify-run"]` in `.verify/config.json` (default `"ask"`). If the user did not specify an executor and the setting is `"ask"`, ask concisely before running:
    1. **Current agent**
    2. **Local `codex` CLI** (great for independent execution and saving main context):
-      Write a concise brief (repo path, changed files, project `verify/SKILL.md` instructions, and required evidence format) to `.verify/tmp-verify-prompt.md`, then run:
-      - Via bundled helper (if present): `node "../../scripts/delegate.mjs" --agent codex --mode workspace-write --cwd "<repo>" --prompt-file ".verify/tmp-verify-prompt.md" --out ".verify/delegations/verify-run-codex.md"`
-      - Or direct CLI fallback: `codex exec -C "<repo>" -s workspace-write -o ".verify/delegations/verify-run-codex.md" - < ".verify/tmp-verify-prompt.md"`
+      Write a concise brief (repo path, changed files, project `verify/SKILL.md` instructions, and required evidence format) to `.verify/tmp-verify-prompt.md` (or OS temp dir if `.verify/` doesn't exist), then run:
+      - Via bundled helper (if present): `node "../../scripts/delegate.mjs" --agent codex --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+      - Or direct CLI fallback: `codex exec -C "<repo>" -s workspace-write -o <outFile> - < <promptFile>`
    3. **Local `claude` CLI**:
-      - Via bundled helper: `node "../../scripts/delegate.mjs" --agent claude --mode workspace-write --cwd "<repo>" --prompt-file ".verify/tmp-verify-prompt.md" --out ".verify/delegations/verify-run-claude.md"`
-      - Or direct CLI fallback: `claude -p --max-turns 12 < ".verify/tmp-verify-prompt.md"`
+      - Via bundled helper: `node "../../scripts/delegate.mjs" --agent claude --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+      - Or direct CLI fallback: `claude -p --max-turns 12 < <promptFile>`
    4. **Clean isolated subagent** (fresh context without implementation bias)
 
 > When delegating externally, inspect the returned report to confirm real commands, exit codes, and fresh output are present — never accept unverified "looks good" claims.
@@ -33,7 +36,7 @@ Execute fast checks and real end-to-end smoke verification against live changes,
 Look for project-specific verification instructions in order:
 1. Nearest `.agents/skills/verify/SKILL.md` or `.claude/skills/verify/SKILL.md` to the modified directory
 2. Repo root `verify/SKILL.md`
-3. If none exists (e.g., mid-flight project without init): infer fast checks and real run/smoke commands from `package.json`, `Makefile`, `pyproject.toml`, `Cargo.toml`, or `go.mod`, and mention `verify-init` afterward as an optional follow-up.
+3. If none exists (e.g., mid-flight or ad-hoc repo): infer fast checks and real run/smoke commands from `package.json`, `Makefile`, `pyproject.toml`, `Cargo.toml`, or `go.mod`, and optionally mention `verify-init` (with `lite` profile) afterward.
 
 ## Step 2: Layered Execution (Cheap Checks → Real Smoke Run)
 
@@ -51,7 +54,7 @@ Look for project-specific verification instructions in order:
 
 ## Step 4: Record Evidence & Pre-Commit Reminder (No Hard Hook Needed)
 
-If `<repo>/.verify/` exists (or the user wants verification tracking), write `.verify/last-run.json`:
+Only if `<repo>/.verify/` already exists (or the user asks to track verification state), write `.verify/last-run.json`:
 ```json
 {
   "timestamp": "<ISO-8601>",
@@ -63,4 +66,4 @@ If `<repo>/.verify/` exists (or the user wants verification tracking), write `.v
   "evidenceSummary": "<concise objective evidence>"
 }
 ```
-Before committing changes, remind the user/agent to include a verification trailer in the commit message (e.g., `Verified-by: verify-run(codex)` or `Verified-by: none (<reason>)`) — no hard-implanted harness hook required.
+If the project uses `profile: "full"` (or `commitCheck.mode !== "off"`), remind before committing to include a verification trailer (e.g., `Verified-by: verify-run(codex)` or `Verified-by: none (<reason>)`).

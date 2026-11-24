@@ -1,0 +1,6 @@
+{
+  "profile": "lite",
+  "delegation": {
+    "verify-run": "ask"
+  }
+}

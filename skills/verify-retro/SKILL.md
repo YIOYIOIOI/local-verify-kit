@@ -4,23 +4,24 @@ description: >-
   Run local post-merge retrospectives and verification health audits using git history: scans
   reverts, hotfix commits, skipped or sleep-padded tests, commit-check logs, and rule file bloat;
   distills recurring misses into candidate rules, challenges them with an independent falsifier
-  agent before human approval, and prunes stale rules. Works completely standalone (great for
-  bootstrapping mid-flight repositories too).
+  agent before human approval, and prunes stale rules. Activate only when explicitly requested by
+  the user; never auto-trigger on simple or "lite" repos.
 ---
 
 # verify-retro
 
 Audit how well your local verification layer is catching real bugs using local git history — zero external eval platform or API key required. Works standalone and is also an ideal first step when adopting this kit on an existing repository.
 
-## Step 0: Execution Routing (Cross-Agent Falsifier Prompt)
+## Step 0: Profile Opt-In Gate & Cross-Agent Falsifier Selection
 
-1. Run the deterministic local scanner first with the current agent to collect objective git/test metrics.
-2. Before **challenging candidate rules (falsification)** or proposing rule edits, check `<repo>/.verify/config.json` under `delegation["verify-retro"]` (default `"ask"`). If `"ask"`, ask concisely who should serve as the skeptical falsifier:
+1. **Explicit Opt-In Only**: never auto-run retrospectives on everyday edits or simple/`lite` repos. Run when explicitly requested by the user (or during a scheduled maintenance review on a `full` repo).
+2. Run the deterministic local scanner first with the current agent to collect objective git/test metrics.
+3. Before **challenging candidate rules (falsification)** or proposing rule edits, check `<repo>/.verify/config.json` under `delegation["verify-retro"]` (default `"ask"`). If `"ask"`, ask concisely who should serve as the skeptical falsifier:
    1. **Local `codex` CLI (read-only sandbox — Recommended as an independent skeptic)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out ".verify/delegations/retro-codex.md"`
+      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
       - Direct fallback: `codex exec -C "<repo>" -s read-only - < <promptFile>`
    2. **Local `claude` CLI (read-only)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out ".verify/delegations/retro-claude.md"`
+      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
    3. **Clean isolated subagent**
    4. **Current agent**
 

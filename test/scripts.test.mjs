@@ -133,6 +133,70 @@ test('commit-check.mjs supports observe, enforce + 2-block escape hatch, exempt 
   }
 });
 
+test('commit-check.mjs stays silent when no config exists or profile is off', () => {
+  const repo = makeTempRepo();
+  try {
+    // 1. No .verify/config.json -> profile_off, zero side-effect files created
+    const resNoCfg = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--message', 'quick script tweak'], {
+      encoding: 'utf8',
+    });
+    assert.equal(resNoCfg.status, 0);
+    const dataNoCfg = JSON.parse(resNoCfg.stdout);
+    assert.equal(dataNoCfg.action, 'profile_off');
+    assert.equal(dataNoCfg.profile, 'off');
+    assert.equal(fs.existsSync(path.join(repo, '.verify')), false);
+
+    // 2. Explicit profile: "off" even with enforce mode -> still profile_off
+    const verifyDir = path.join(repo, '.verify');
+    fs.mkdirSync(verifyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(verifyDir, 'config.json'),
+      JSON.stringify({ profile: 'off', commitCheck: { mode: 'enforce' } })
+    );
+    const resOff = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--message', 'wip'], { encoding: 'utf8' });
+    assert.equal(resOff.status, 0);
+    assert.equal(JSON.parse(resOff.stdout).action, 'profile_off');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('commit-check.mjs respects profile "lite" (only requires verify-run)', () => {
+  const repo = makeTempRepo();
+  try {
+    const verifyDir = path.join(repo, '.verify');
+    fs.mkdirSync(verifyDir, { recursive: true });
+    const headSha = git(['rev-parse', 'HEAD'], repo);
+
+    fs.writeFileSync(
+      path.join(verifyDir, 'config.json'),
+      JSON.stringify({ profile: 'lite', commitCheck: { mode: 'enforce' } })
+    );
+
+    // Without verify-run -> blocks and specifically asks for verify-run (not isolated-review)
+    const blocked = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', 'lite-sess-1', '--message', 'feat: x'], {
+      encoding: 'utf8',
+    });
+    assert.equal(blocked.status, 1);
+    const blockedData = JSON.parse(blocked.stdout);
+    assert.equal(blockedData.profile, 'lite');
+    assert.deepEqual(blockedData.requireAny, ['verify-run']);
+
+    // With fresh last-run.json -> allowed cleanly
+    fs.writeFileSync(
+      path.join(verifyDir, 'last-run.json'),
+      JSON.stringify({ timestamp: new Date().toISOString(), headSha, executor: 'self', status: 'passed' })
+    );
+    const ok = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', 'lite-sess-1', '--message', 'feat: x'], {
+      encoding: 'utf8',
+    });
+    assert.equal(ok.status, 0);
+    assert.equal(JSON.parse(ok.stdout).satisfied, true);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('delegate.mjs --check reports available CLIs as valid JSON', () => {
   const raw = execFileSync('node', [DELEGATE, '--check'], { encoding: 'utf8' });
   const data = JSON.parse(raw);

@@ -105,6 +105,25 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 
 ---
 
+## Install Globally, Activate Per-Project (`off` / `lite` / `full`)
+
+You do **not** need to install skills separately into every repository — install `local-verify-kit` **globally once**, and control how heavy or light verification feels per project via an optional `.verify/config.json`:
+
+| Profile | Setup in Repo | Active by Default | Best For |
+| :--- | :--- | :--- | :--- |
+| **`off` (Default)** | **Nothing** (no `.verify/` folder) | None automatically — zero noise; explicit invocation always works | Simple scripts, prototypes, small utilities |
+| **`lite`** | `{ "profile": "lite" }` ([example](./examples/config.lite.json)) | `verify-run` only (fast checks + E2E smoke + 3-round fuse) | Small/medium personal tools (skips heavy pre-PR review ceremony) |
+| **`full`** | `{ "profile": "full", ... }` ([example](./examples/config.json)) | `verify-run`, `diff-gate`, `isolated-review`, `verify-retro` | Core production & multi-contributor repositories |
+| **Custom `modules`** | `{ "profile": "lite", "modules": ["verify-run", "isolated-review"] }` | Exact subset you list | Tailored workflows |
+
+**Explicit user instructions always override the profile**:
+- On a zero-config simple repo, say *"Run `isolated-review` with codex on this change"* → runs once on demand without creating `.verify/`.
+- On a `full` repo, say *"Docs typo only, skip verification"* → skips immediately.
+
+*(Optional harness-level strictness: if you want to block implicit invocation completely at the host level, Claude Code supports `disable-model-invocation: true` in skill frontmatter and Codex supports `allow_implicit_invocation: false` in `agents/openai.yaml`.)*
+
+---
+
 ## Cross-Agent Delegation
 
 Writing code and reviewing/verifying it in the exact same conversation creates confirmation bias. Every execution skill starts with an explicit **Execution Routing** step:
@@ -118,6 +137,7 @@ Writing code and reviewing/verifying it in the exact same conversation creates c
 
 ```json
 {
+  "profile": "full",
   "baseBranch": "main",
   "delegation": {
     "verify-init": "ask",
