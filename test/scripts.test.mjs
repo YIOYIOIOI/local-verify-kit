@@ -173,8 +173,10 @@ test('commit-check.mjs respects profile "lite" (only requires verify-run)', () =
       JSON.stringify({ profile: 'lite', commitCheck: { mode: 'enforce' } })
     );
 
+    const liteSession = `lite-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     // Without verify-run -> blocks and specifically asks for verify-run (not isolated-review)
-    const blocked = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', 'lite-sess-1', '--message', 'feat: x'], {
+    const blocked = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', liteSession, '--message', 'feat: x'], {
       encoding: 'utf8',
     });
     assert.equal(blocked.status, 1);
@@ -187,7 +189,7 @@ test('commit-check.mjs respects profile "lite" (only requires verify-run)', () =
       path.join(verifyDir, 'last-run.json'),
       JSON.stringify({ timestamp: new Date().toISOString(), headSha, executor: 'self', status: 'passed' })
     );
-    const ok = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', 'lite-sess-1', '--message', 'feat: x'], {
+    const ok = spawnSync('node', [COMMIT_CHECK, '--cwd', repo, '--session', liteSession, '--message', 'feat: x'], {
       encoding: 'utf8',
     });
     assert.equal(ok.status, 0);
@@ -216,6 +218,9 @@ test('commit-check.mjs supports per-target overrides (e.g., private=lite vs publ
       })
     );
 
+    const dualSessPriv = `dual-priv-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const dualSessPub = `dual-pub-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     // Fresh verify-run passes private target (lite)
     fs.writeFileSync(
       path.join(verifyDir, 'last-run.json'),
@@ -223,7 +228,7 @@ test('commit-check.mjs supports per-target overrides (e.g., private=lite vs publ
     );
     const priv = spawnSync(
       'node',
-      [COMMIT_CHECK, '--cwd', repo, '--target', 'private', '--session', 'dual-1', '--message', 'feat: internal'],
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'private', '--session', dualSessPriv, '--message', 'feat: internal'],
       { encoding: 'utf8' }
     );
     assert.equal(priv.status, 0);
@@ -235,7 +240,7 @@ test('commit-check.mjs supports per-target overrides (e.g., private=lite vs publ
     // Same state blocks public target because public requires isolated-review
     const pubBlocked = spawnSync(
       'node',
-      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', 'dual-2', '--message', 'feat: release'],
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', dualSessPub, '--message', 'feat: release'],
       { encoding: 'utf8' }
     );
     assert.equal(pubBlocked.status, 1);
@@ -251,7 +256,7 @@ test('commit-check.mjs supports per-target overrides (e.g., private=lite vs publ
     );
     const pubOk = spawnSync(
       'node',
-      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', 'dual-2', '--message', 'feat: release'],
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', dualSessPub, '--message', 'feat: release'],
       { encoding: 'utf8' }
     );
     assert.equal(pubOk.status, 0);
