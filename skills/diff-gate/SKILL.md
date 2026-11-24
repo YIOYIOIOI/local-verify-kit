@@ -14,7 +14,7 @@ Evaluate only the reliability checklist rules triggered by the active `git diff`
 ## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
 
 1. **HARD STOP — Opt-In Profile Check** (run before any diff inspection or commit check):
-   - Read `<repo>/.verify/config.json` if present.
+   - Read `<repo>/.verify/config.json` if present. If `targets` is defined (e.g., `private` vs `public` remote, or `dev` vs `release`), resolve `profile`/`modules` from the matching `targets.<name>` for the current push/PR target (defaulting to top-level `profile`).
    - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `diff-gate` directly without asking): **STOP immediately — do not run checks yet.** Ask the user in one brief question whether this repo should use `lite` (skip `diff-gate`), `full`, a one-off `diff-gate` without writing `.verify/`, or `off`, plus which executor (`current agent` / `codex` / `claude` / subagent). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"diff-gate"` in `"modules"`): skip silently unless the user explicitly invoked `diff-gate`.
    - Never auto-chain into `isolated-review` or other modules after finishing unless asked.
@@ -47,7 +47,7 @@ Compare changed file paths and code edits against each item's `trigger` and `fil
 Instead of hard-implanting a harness hook, remind before `git commit`:
 1. Optionally run the standalone readiness checker:
    ```bash
-   node "./scripts/commit-check.mjs" --cwd "<repo>" --message "<commit message>"
+   node "./scripts/commit-check.mjs" --cwd "<repo>" [--target <name>] --message "<commit message>"
    ```
    - Missing config or `profile: "off"`: returns `profile_off` and exits 0 silently.
    - `profile: "lite"`: defaults to checking only `verify-run`.

@@ -197,6 +197,70 @@ test('commit-check.mjs respects profile "lite" (only requires verify-run)', () =
   }
 });
 
+test('commit-check.mjs supports per-target overrides (e.g., private=lite vs public=full)', () => {
+  const repo = makeTempRepo();
+  try {
+    const verifyDir = path.join(repo, '.verify');
+    fs.mkdirSync(verifyDir, { recursive: true });
+    const headSha = git(['rev-parse', 'HEAD'], repo);
+
+    fs.writeFileSync(
+      path.join(verifyDir, 'config.json'),
+      JSON.stringify({
+        profile: 'lite',
+        commitCheck: { mode: 'enforce' },
+        targets: {
+          private: { profile: 'lite' },
+          public: { profile: 'full', modules: ['isolated-review'] },
+        },
+      })
+    );
+
+    // Fresh verify-run passes private target (lite)
+    fs.writeFileSync(
+      path.join(verifyDir, 'last-run.json'),
+      JSON.stringify({ timestamp: new Date().toISOString(), headSha, executor: 'self', status: 'passed' })
+    );
+    const priv = spawnSync(
+      'node',
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'private', '--session', 'dual-1', '--message', 'feat: internal'],
+      { encoding: 'utf8' }
+    );
+    assert.equal(priv.status, 0);
+    const privData = JSON.parse(priv.stdout);
+    assert.equal(privData.target, 'private');
+    assert.equal(privData.profile, 'lite');
+    assert.equal(privData.satisfied, true);
+
+    // Same state blocks public target because public requires isolated-review
+    const pubBlocked = spawnSync(
+      'node',
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', 'dual-2', '--message', 'feat: release'],
+      { encoding: 'utf8' }
+    );
+    assert.equal(pubBlocked.status, 1);
+    const pubData = JSON.parse(pubBlocked.stdout);
+    assert.equal(pubData.target, 'public');
+    assert.equal(pubData.profile, 'full');
+    assert.deepEqual(pubData.requireAny, ['isolated-review']);
+
+    // Adding fresh isolated-review passes public target
+    fs.writeFileSync(
+      path.join(verifyDir, 'last-review.json'),
+      JSON.stringify({ timestamp: new Date().toISOString(), headSha, executor: 'codex', status: 'passed' })
+    );
+    const pubOk = spawnSync(
+      'node',
+      [COMMIT_CHECK, '--cwd', repo, '--target', 'public', '--session', 'dual-2', '--message', 'feat: release'],
+      { encoding: 'utf8' }
+    );
+    assert.equal(pubOk.status, 0);
+    assert.equal(JSON.parse(pubOk.stdout).satisfied, true);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('delegate.mjs --check reports available CLIs as valid JSON', () => {
   const raw = execFileSync('node', [DELEGATE, '--check'], { encoding: 'utf8' });
   const data = JSON.parse(raw);

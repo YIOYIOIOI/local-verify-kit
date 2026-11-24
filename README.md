@@ -115,6 +115,7 @@ You do **not** need to install skills separately into every repository — insta
 | **`lite`** | `{ "profile": "lite" }` ([example](./examples/config.lite.json)) | `verify-run` only (fast checks + E2E smoke + 3-round fuse) | Small/medium personal tools (skips heavy pre-PR review ceremony) |
 | **`full`** | `{ "profile": "full", ... }` ([example](./examples/config.json)) | `verify-run`, `diff-gate`, `isolated-review`, `verify-retro` | Core production & multi-contributor repositories |
 | **Custom `modules`** | `{ "profile": "lite", "modules": ["verify-run", "isolated-review"] }` | Exact subset you list | Tailored workflows |
+| **Dual-Repo / Multi-Target `targets`** | `{ "profile": "lite", "targets": { "private": { "profile": "lite" }, "public": { "profile": "full" } } }` ([example](./examples/config.dual-repo.json)) | Resolves active profile per push/PR target (`--target public`) | Private daily iteration + strict public sync/release |
 
 **Explicit user instructions always override the profile**:
 - On a zero-config simple repo, say *"Run `isolated-review` with codex on this change"* → runs once on demand without creating `.verify/`.

@@ -17,7 +17,7 @@ Bring isolated, tamper-resistant code review into local workflows with zero API 
 ## Step 0: Profile Opt-In Gate & Cross-Agent Reviewer Selection
 
 1. **HARD STOP — Opt-In Profile Check** (run before reading diffs or launching any reviewer):
-   - Read `<repo>/.verify/config.json` if present.
+   - Read `<repo>/.verify/config.json` if present. If `targets` is defined (e.g., `private` = `lite`, `public` = `full`), resolve `profile`/`modules` from the matching `targets.<name>` for the current push/PR target — skip silently when targeting a `lite`/`off` target (such as a private dev repo) unless the user explicitly requested `isolated-review`.
    - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `isolated-review` directly without asking): **STOP immediately — do not run any review yet.** Ask the user in one brief question whether this repo should use `lite` (skip independent pre-PR review), `full`, a one-off `isolated-review` without writing `.verify/`, or `off`, plus which reviewer (`codex` / `claude` / clean subagent / current agent). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"isolated-review"` in `"modules"`): skip silently unless the user explicitly invoked `isolated-review`.
    - Never auto-chain into other verification modules before or after this review unless asked.

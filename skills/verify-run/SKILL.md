@@ -15,7 +15,7 @@ Execute fast checks and real end-to-end smoke verification against live changes,
 ## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
 
 1. **HARD STOP — Opt-In Profile Check** (run before any build/test/smoke command):
-   - Read `<repo>/.verify/config.json` if it exists.
+   - Read `<repo>/.verify/config.json` if it exists. If `targets` is defined (e.g., `private` vs `public` remote, or `dev` vs `release`), resolve the active `profile`/`modules` from the matching `targets.<name>` for the current task (defaulting to top-level `profile`).
    - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `verify-run` directly without asking): **STOP immediately — do not execute any checks yet.** Ask the user in one brief question: (a) how this repo should run verification (`lite` smoke only / `full` / one-off `verify-run` without writing `.verify/` / `off` skip), and (b) which executor to use (`current agent` / `codex` / `claude` / clean subagent). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` (or a custom `"modules"` list excluding `"verify-run"`): stay silent unless the user explicitly invoked `verify-run`.
    - Never auto-chain into `diff-gate`, `isolated-review`, or other modules after finishing unless asked.

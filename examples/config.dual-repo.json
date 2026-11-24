@@ -1,0 +1,11 @@
+{
+  "profile": "lite",
+  "targets": {
+    "private": {
+      "profile": "lite"
+    },
+    "public": {
+      "profile": "full"
+    }
+  }
+}

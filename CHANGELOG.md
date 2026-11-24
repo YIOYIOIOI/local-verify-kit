@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-11-24
+
+### Added
+- Optional per-target profile overrides (`targets` in `.verify/config.json`, e.g., `private: lite` vs `public: full`, or `dev` vs `release`) plus `--target <name>` support in `skills/diff-gate/scripts/commit-check.mjs`.
+- `examples/config.dual-repo.json` starter config and end-to-end integration test covering private vs. public target enforcement.
+
 ## [0.2.1] - 2026-11-24
 
 ### Changed

@@ -13,7 +13,7 @@
  *   1 - blocked in enforce mode (fresh verification evidence missing)
  *
  * Usage:
- *   node commit-check.mjs [--cwd <repoDir>] [--session <id>] [--message <commitMsg>]
+ *   node commit-check.mjs [--cwd <repoDir>] [--target <name>] [--session <id>] [--message <commitMsg>]
  */
 
 import fs from 'node:fs';
@@ -22,9 +22,10 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 function parseArgs(argv) {
-  const opts = { cwd: process.cwd(), session: 'default', message: '' };
+  const opts = { cwd: process.cwd(), target: '', session: 'default', message: '' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--cwd') opts.cwd = argv[++i] || process.cwd();
+    else if (argv[i] === '--target') opts.target = argv[++i] || '';
     else if (argv[i] === '--session') opts.session = argv[++i] || 'default';
     else if (argv[i] === '--message') opts.message = argv[++i] || '';
   }
@@ -113,6 +114,27 @@ function resolveRequireAny(profile, config, gateCfg) {
   return ['verify-run', 'isolated-review'];
 }
 
+function applyTargetOverride(config, targetName) {
+  if (!config || !targetName || !config.targets || typeof config.targets !== 'object') {
+    return { effectiveConfig: config, matchedTarget: null };
+  }
+  const targetCfg = config.targets[targetName];
+  if (!targetCfg || typeof targetCfg !== 'object') {
+    return { effectiveConfig: config, matchedTarget: null };
+  }
+  return {
+    matchedTarget: targetName,
+    effectiveConfig: {
+      ...config,
+      ...targetCfg,
+      commitCheck: {
+        ...(config.commitCheck || config.commitGate || {}),
+        ...(targetCfg.commitCheck || targetCfg.commitGate || {}),
+      },
+    },
+  };
+}
+
 function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repoRoot = tryGit(['rev-parse', '--show-toplevel'], opts.cwd);
@@ -122,7 +144,8 @@ function main() {
   }
 
   const verifyDir = path.join(repoRoot, '.verify');
-  const config = safeReadJson(path.join(verifyDir, 'config.json'));
+  const rawConfig = safeReadJson(path.join(verifyDir, 'config.json'));
+  const { effectiveConfig: config, matchedTarget } = applyTargetOverride(rawConfig, opts.target);
   const profile = resolveProfile(config);
 
   if (profile === 'off') {
@@ -130,6 +153,7 @@ function main() {
       JSON.stringify(
         {
           timestamp: new Date().toISOString(),
+          target: matchedTarget,
           profile: 'off',
           status: 'allow',
           action: 'profile_off',
@@ -179,6 +203,7 @@ function main() {
 
   const baseRecord = {
     timestamp: new Date().toISOString(),
+    target: matchedTarget,
     profile,
     mode,
     requireAny,

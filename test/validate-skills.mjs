@@ -21,6 +21,7 @@ for (const rel of [
   'package.json',
   'examples/config.json',
   'examples/config.lite.json',
+  'examples/config.dual-repo.json',
   'examples/reliability-checklist.json',
 ]) {
   const abs = path.join(ROOT, rel);

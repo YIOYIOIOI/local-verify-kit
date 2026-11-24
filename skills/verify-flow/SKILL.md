@@ -22,6 +22,7 @@ Check `<repo>/.verify/config.json` to see the current repository's profile:
 | **`lite`** (`{ "profile": "lite" }`) | `verify-run` only | Small/medium personal projects — fast checks & smoke runs, zero heavy review ceremony |
 | **`full`** (`{ "profile": "full" }`) | `verify-run`, `diff-gate`, `isolated-review`, `verify-retro` | Core production or multi-contributor repositories |
 | Custom **`modules`** array | Any exact subset (e.g., `["verify-run", "isolated-review"]`) | Custom per-repo combinations |
+| Optional **`targets`** map | Per-target `profile`/`modules` overrides (e.g., `private: lite`, `public: full`) | Dual-repo (`private`/`public`) or multi-branch (`dev`/`release`) workflows |
 
 ## Reuse Mature Ecosystem Skills First
 

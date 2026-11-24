@@ -109,6 +109,7 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 | **`lite`（轻量）** | `{ "profile": "lite" }`（[示例](./examples/config.lite.json)） | 仅 **`verify-run`**（快检 + 真实冒烟 + 3 轮熔断） | 中小型个人项目（跳过重型 PR 独立复审） |
 | **`full`（完整）** | `{ "profile": "full", ... }`（[示例](./examples/config.json)） | `verify-run`、`diff-gate`、`isolated-review`、`verify-retro` | 核心生产项目、多人协作仓库 |
 | **自定义 `modules`** | `{ "profile": "lite", "modules": ["verify-run", "isolated-review"] }` | 按列表精准启用任意组合 | 按需自由拼装 |
+| **双仓 / 多目标 `targets`** | `{ "profile": "lite", "targets": { "private": { "profile": "lite" }, "public": { "profile": "full" } } }`（[示例](./examples/config.dual-repo.json)） | 按当前推送/PR 目标切换档位（`--target public`） | 私密仓快速迭代（免独立复审）+ 公开仓严格复审 |
 
 **口头指令永远高于项目档位**：
 * 哪怕是没配任何文件的简单项目，某次改了核心逻辑只需说一句 *“这次用 `isolated-review` 交给 codex 审一遍”* → 立刻单次生效，且不会乱建 `.verify/`；
