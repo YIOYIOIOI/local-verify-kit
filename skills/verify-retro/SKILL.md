@@ -14,7 +14,7 @@ Audit how well your local verification layer is catching real bugs using local g
 
 ## Step 0: Profile Opt-In Gate & Cross-Agent Falsifier Selection
 
-1. **Explicit Opt-In Only**: never auto-run retrospectives on everyday edits or simple/`lite` repos. Run when explicitly requested by the user (or during a scheduled maintenance review on a `full` repo).
+1. **HARD STOP — Explicit Opt-In Only**: never auto-run retrospectives on everyday edits or simple/`lite` repos. If `.verify/config.json` is missing and the user did not explicitly instruct you to run `verify-retro` immediately, **STOP and ask** before running `retro-scan.mjs` or proposing rule edits (also confirming whether to delegate falsification to `codex` / `claude` / subagent). Never auto-chain into other verification modules unless asked.
 2. Run the deterministic local scanner first with the current agent to collect objective git/test metrics.
 3. Before **challenging candidate rules (falsification)** or proposing rule edits, check `<repo>/.verify/config.json` under `delegation["verify-retro"]` (default `"ask"`). If `"ask"`, ask concisely who should serve as the skeptical falsifier:
    1. **Local `codex` CLI (read-only sandbox — Recommended as an independent skeptic)**:

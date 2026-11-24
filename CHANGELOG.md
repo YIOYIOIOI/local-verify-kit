@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-11-24
+
+### Changed
+- Added an explicit **HARD STOP** check in `Step 0` of `verify-run`, `diff-gate`, `isolated-review`, and `verify-retro`: when `<repo>/.verify/config.json` is missing, agents must pause and ask the user for the project's desired profile (`lite` / `full` / one-off / `off`) and executor before running any checks, and must never auto-chain across modules unasked.
+
 ## [0.2.0] - 2026-11-24
 
 ### Added

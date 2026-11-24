@@ -13,10 +13,11 @@ Evaluate only the reliability checklist rules triggered by the active `git diff`
 
 ## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
 
-1. **Opt-In Profile Check** (zero friction on simple & `lite` repos):
+1. **HARD STOP — Opt-In Profile Check** (run before any diff inspection or commit check):
    - Read `<repo>/.verify/config.json` if present.
-   - **If the user explicitly invoked `diff-gate`**: proceed immediately (never auto-create `.verify/` unless asked).
-   - **If triggered implicitly** and the repo has no config, `"profile": "off"`, or `"profile": "lite"` (without `"diff-gate"` in `"modules"`): **skip silently** so lightweight projects stay fast and quiet.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `diff-gate` directly without asking): **STOP immediately — do not run checks yet.** Ask the user in one brief question whether this repo should use `lite` (skip `diff-gate`), `full`, a one-off `diff-gate` without writing `.verify/`, or `off`, plus which executor (`current agent` / `codex` / `claude` / subagent). Wait for their reply.
+   - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"diff-gate"` in `"modules"`): skip silently unless the user explicitly invoked `diff-gate`.
+   - Never auto-chain into `isolated-review` or other modules after finishing unless asked.
 2. **Execution Routing**: if the user is only toggling `profile` or `commitCheck.mode` (`off` / `observe` / `enforce`), handle directly. Before running a diff checklist audit, check `delegation["diff-gate"]` (default `"ask"`). If `"ask"`, ask concisely who should inspect the diff:
    1. **Current agent**
    2. **Clean isolated subagent** (read-only)

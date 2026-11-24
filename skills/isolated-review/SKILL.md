@@ -16,10 +16,11 @@ Bring isolated, tamper-resistant code review into local workflows with zero API 
 
 ## Step 0: Profile Opt-In Gate & Cross-Agent Reviewer Selection
 
-1. **Opt-In Profile Check** (zero heavy review ceremony on simple or `lite` projects):
+1. **HARD STOP — Opt-In Profile Check** (run before reading diffs or launching any reviewer):
    - Read `<repo>/.verify/config.json` if present.
-   - **If the user explicitly requested `isolated-review` or an independent pre-PR review**: proceed immediately (even on repos without `.verify/config.json`; do not auto-create `.verify/` unless asked).
-   - **If triggered implicitly** and the repo has no config, `"profile": "off"`, or `"profile": "lite"` (without `"isolated-review"` in `"modules"`): **do not automatically start a heavy cross-agent review** — skip silently or briefly note that the user can invoke `isolated-review` on demand.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `isolated-review` directly without asking): **STOP immediately — do not run any review yet.** Ask the user in one brief question whether this repo should use `lite` (skip independent pre-PR review), `full`, a one-off `isolated-review` without writing `.verify/`, or `off`, plus which reviewer (`codex` / `claude` / clean subagent / current agent). Wait for their reply.
+   - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"isolated-review"` in `"modules"`): skip silently unless the user explicitly invoked `isolated-review`.
+   - Never auto-chain into other verification modules before or after this review unless asked.
 2. **Execution Routing (Cross-Agent Reviewer Recommended)**:
    Reviewing code inside the same conversation that wrote it introduces confirmation bias. Check `delegation["isolated-review"]` (default `"ask"`). If no reviewer was named and config is `"ask"`, ask concisely who should act as reviewer:
    1. **Local `codex` CLI (read-only sandbox — Recommended when another agent wrote the code)**:

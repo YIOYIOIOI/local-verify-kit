@@ -14,10 +14,11 @@ Execute fast checks and real end-to-end smoke verification against live changes,
 
 ## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
 
-1. **Opt-In Profile Check** (prevents over-triggering on simple repos when installed globally):
+1. **HARD STOP — Opt-In Profile Check** (run before any build/test/smoke command):
    - Read `<repo>/.verify/config.json` if it exists.
-   - **If the user explicitly asked for `verify-run` / smoke verification**: proceed immediately (explicit user intent always overrides project profile; do not auto-create `.verify/` if it does not exist).
-   - **If triggered implicitly** and `.verify/config.json` is absent or sets `"profile": "off"` (or defines a custom `"modules"` list excluding `"verify-run"`): **do not run heavy verification automatically** — stay out of the way unless the user asks.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `verify-run` directly without asking): **STOP immediately — do not execute any checks yet.** Ask the user in one brief question: (a) how this repo should run verification (`lite` smoke only / `full` / one-off `verify-run` without writing `.verify/` / `off` skip), and (b) which executor to use (`current agent` / `codex` / `claude` / clean subagent). Wait for their reply.
+   - **If `.verify/config.json` exists** with `"profile": "off"` (or a custom `"modules"` list excluding `"verify-run"`): stay silent unless the user explicitly invoked `verify-run`.
+   - Never auto-chain into `diff-gate`, `isolated-review`, or other modules after finishing unless asked.
 2. **Execution Routing**: check `delegation["verify-run"]` in `.verify/config.json` (default `"ask"`). If the user did not specify an executor and the setting is `"ask"`, ask concisely before running:
    1. **Current agent**
    2. **Local `codex` CLI** (great for independent execution and saving main context):
