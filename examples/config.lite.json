@@ -1,6 +1,6 @@
 {
   "profile": "lite",
   "delegation": {
-    "verify-run": "ask"
+    "verify-run": "subagent"
   }
 }

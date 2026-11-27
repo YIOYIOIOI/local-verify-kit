@@ -37,7 +37,7 @@
 **Local Verify Kit** 坚持五条克制的设计原则：
 * **高度模块化、绝不过度统一**：5 个完全独立的 Skill（外加 1 个极薄可选路由）。需要哪个环节就只用哪个，拆出任意单个 Skill 也能独立工作。
 * **把云端护栏完整拉回本地（零 API Key）**：主干分支隔离读取 `REVIEW.md`（`git show main:REVIEW.md`）、精确绑定 `HEAD` SHA、以及基于本地 Git 历史的漏报复盘与规则瘦身，全部纯本地跑通。
-* **原生支持跨 Agent 委派**：每个执行 Skill 动手前都会确认是否指派给其他 Agent（例如当前 Agent 写代码，把 `verify-run` 或 `isolated-review` 委派给本地 **Codex**、**Claude** 或干净子代理），天然实现“裁判与选手分离”。
+* **默认内置 `subagent`，外部 CLI 默认锁死**：验证、自检与评审默认采用当前宿主自带的**干净独立子代理（`subagent`）**，避免误耗其他付费/限额 CLI 额度；仅在你显式点名并放行时才允许通过 `scripts/delegate.mjs` 委派给本地 **Codex** 或 **Claude**。
 * **零硬植入 Hook**：不往任何宿主的 Hook 系统强行注入拦截器，改为在 Skill 中温和提醒并配合独立 CLI 脚本留痕，100% 通用跨端。
 * **复用优先，不重复造轮子**：与 [`obra/superpowers`](https://github.com/obra/superpowers)（规划、TDD、Worktree、系统排错、分支收尾）及浏览器驱动工具（`chrome-devtools` / Playwright / `browser-use`）互补协作，只精准补齐验证缺口。
 
@@ -68,14 +68,14 @@ flowchart LR
 
 ## 独立模块清单
 
-| 独立 Skill | 核心职责 | 拉回本地的关键机制 | 常见跨 Agent 委派搭配 |
+| 独立 Skill | 核心职责 | 拉回本地的关键机制 | 默认执行者（外部 CLI 仅显式开启） |
 | :--- | :--- | :--- | :--- |
-| **[`verify-init`](./skills/verify-init/SKILL.md)** | 侦察项目（Surface / Run / Drive / Observe），生成并**当场实跑压测**专属 `verify/SKILL.md` | 新老项目非破坏性增量接入 | 默认当前 Agent |
-| **[`verify-run`](./skills/verify-run/SKILL.md)** | 先跑便宜快检，再真启动应用端到端冒烟，强制 **3 轮失败熔断叫人**，禁止 `.skip`/`sleep`，写 `.verify/last-run.json` | 推送前拿真实运行证据 | 常委派给 **`codex`** 或干净子代理 |
-| **[`diff-gate`](./skills/diff-gate/SKILL.md)** | 仅评估本次 `git diff` 触发命中的历史可靠性清单；提交前温和提醒检查并附带验证戳记 | 精准防复发、不塞爆上下文 | 当前 Agent 或只读 `codex` / `claude` |
-| **[`isolated-review`](./skills/isolated-review/SKILL.md)** | 物理强制只从默认主分支读取 `REVIEW.md`（防分支篡改规则），绑定精确 `HEAD` SHA，多轮递进，按 `[Important]` / `[Nit]` / `[Pre-existing]` 分级 | **云端隔离 PR 评审拉回本地**（零 API Key）+ 可选 `gh pr comment` | **强推荐异构交叉裁判**（`codex` ↔ `claude` / 当前宿主） |
-| **[`verify-retro`](./skills/verify-retro/SKILL.md)** | 扫描近期 `git log` 回滚与热修、查测试里的 `.skip`/`sleep` 敷衍、统计规则膨胀度，派证伪官挑战候选规则后再交人审 | **云端评测与规则演化拉回本地** | 本地脚本扫描 + 独立证伪官（`codex` / `claude`） |
-| **[`verify-flow`](./skills/verify-flow/SKILL.md)** | 极薄、非强制导航路由：优先路由至已有成熟 Skill，再按需选 1 个独立模块 | 绝不强绑流水线 | 透传你选定的执行者 |
+| **[`verify-init`](./skills/verify-init/SKILL.md)** | 侦察项目（Surface / Run / Drive / Observe），生成并**当场实跑压测**专属 `verify/SKILL.md` | 新老项目非破坏性增量接入 | 当前 Agent（`self`，默认） |
+| **[`verify-run`](./skills/verify-run/SKILL.md)** | 先跑便宜快检，再真启动应用端到端冒烟，强制 **3 轮失败熔断叫人**，禁止 `.skip`/`sleep`，写 `.verify/last-run.json` | 推送前拿真实运行证据 | 干净独立 **`subagent`**（或 `self`） |
+| **[`diff-gate`](./skills/diff-gate/SKILL.md)** | 仅评估本次 `git diff` 触发命中的历史可靠性清单；提交前温和提醒检查并附带验证戳记 | 精准防复发、不塞爆上下文 | 干净独立 **`subagent`**（只读） |
+| **[`isolated-review`](./skills/isolated-review/SKILL.md)** | 物理强制只从默认主分支读取 `REVIEW.md`（防分支篡改规则），绑定精确 `HEAD` SHA，多轮递进，按 `[Important]` / `[Nit]` / `[Pre-existing]` 分级 | **云端隔离 PR 评审拉回本地**（零 API Key）+ 可选 `gh pr comment` | 干净独立 **`subagent`**（外部 `codex`/`claude` 仅显式开启） |
+| **[`verify-retro`](./skills/verify-retro/SKILL.md)** | 扫描近期 `git log` 回滚与热修、查测试里的 `.skip`/`sleep` 敷衍、统计规则膨胀度，派证伪官挑战候选规则后再交人审 | **云端评测与规则演化拉回本地** | 本地脚本扫描 + 独立 **`subagent`** 证伪官 |
+| **[`verify-flow`](./skills/verify-flow/SKILL.md)** | 极薄、非强制导航路由：优先路由至已有成熟 Skill，再按需选 1 个独立模块 | 绝不强绑流水线 | 默认 **`subagent`** |
 
 ---
 
@@ -119,27 +119,27 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 
 ---
 
-## 跨 Agent 委派机制
+## 跨 Agent 委派机制（默认 `subagent`，外部 CLI 默认锁死）
 
-同一个对话里既写代码又当裁判，极易陷入思维惯性。本套件每个执行 Skill 开头都内置了**执行者路由确认**：
+同一个对话里既写代码又当裁判，极易陷入思维惯性。本套件所有独立验证/评审模块**默认使用当前宿主自带的干净独立子代理（`subagent`）**，既实现裁判分离，又不消耗外部 CLI 额度：
 
-1. 默认配置为 `"ask"`，动手前会简短询问由谁执行：
-   * 当前 Agent
-   * 干净上下文独立子代理
-   * 本地 **`codex`** CLI（评审与自检默认只读沙盒 `-s read-only`，冒烟验证使用 `-s workspace-write`）
-   * 本地 **`claude`** CLI（非交互 `-p` 模式，评审默认限制为只读工具集）
-2. 若想在某个仓库固化分工，可按需创建 `.verify/config.json`（参考 [`examples/config.json`](./examples/config.json)）：
+1. **默认模式为 `subagent`**：`verify-run`、`diff-gate`、`isolated-review`、`verify-retro` 默认走独立子代理（若当前宿主无子代理能力，则降级为当前 Agent `self`，绝不自动切外部 CLI）。
+2. **外部 CLI（`codex` / `claude`）仅严格显式放行**：
+   * `scripts/delegate.mjs` 默认 **Fail-Closed 拒绝执行**（退出码 `3` 并提示改用 `subagent`）；
+   * 禁止 Agent 擅自选用、写入 `.verify/config.json` 或在一个外部 CLI 报错时静默切换去试另一个外部 CLI；
+   * 只有你明确需要跨工具评审时，才通过环境变量 `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=codex`（或 `none` 强制全局禁止）或在 `.verify/config.json` 中显式声明 `"allowExternalCli": ["codex"]` 放行。
+3. 推荐的默认 `.verify/config.json`（参考 [`examples/config.json`](./examples/config.json)）：
 
 ```json
 {
   "profile": "full",
   "baseBranch": "main",
   "delegation": {
-    "verify-init": "ask",
-    "verify-run": "codex",
-    "diff-gate": "ask",
-    "isolated-review": "claude",
-    "verify-retro": "ask"
+    "verify-init": "self",
+    "verify-run": "subagent",
+    "diff-gate": "subagent",
+    "isolated-review": "subagent",
+    "verify-retro": "subagent"
   },
   "commitCheck": {
     "mode": "observe",
@@ -150,9 +150,9 @@ npx skills add YIOYIOIOI/local-verify-kit --skill isolated-review
 }
 ```
 
-随时检查本机可用的外部 Agent CLI：
+随时检查本机可用外部 CLI 与当前放行策略：
 ```bash
-node scripts/delegate.mjs --check
+node scripts/delegate.mjs --check --cwd <repo>
 ```
 
 ---

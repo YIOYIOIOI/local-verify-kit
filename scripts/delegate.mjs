@@ -5,8 +5,16 @@
  * Delegates a focused prompt to a locally installed CLI coding agent (`codex` or `claude`)
  * over stdin so long prompts and Windows/Unix shell escaping stay reliable.
  *
+ * Safety policy (fail-closed by default):
+ *   External CLI delegation is DISABLED by default — the default verification mode is
+ *   the host's native isolated `subagent`. To allow an external CLI after explicit user
+ *   approval, opt in via either:
+ *     1. Environment variable: LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=codex (or comma-separated / "all")
+ *        (Set LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=none to force-deny regardless of repo config.)
+ *     2. Repo config (<cwd>/.verify/config.json): "allowExternalCli": ["codex"]
+ *
  * Usage:
- *   node scripts/delegate.mjs --check
+ *   node scripts/delegate.mjs --check [--cwd <repoDir>]
  *   node scripts/delegate.mjs --agent codex --cwd <repoDir> --mode read-only --prompt-file <file> [--out <file>]
  *   node scripts/delegate.mjs --agent codex --review --base main --cwd <repoDir> --prompt-file <file> [--out <file>]
  *   node scripts/delegate.mjs --agent claude --cwd <repoDir> --mode read-only --prompt-file <file> [--out <file>]
@@ -15,6 +23,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+
+const SUPPORTED_AGENTS = ['codex', 'claude'];
+const DENY_TOKENS = new Set(['none', 'false', '0', 'off', 'deny']);
 
 function parseArgs(argv) {
   const opts = {
@@ -31,7 +42,7 @@ function parseArgs(argv) {
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--agent') opts.agent = argv[++i] || '';
+    if (a === '--agent') opts.agent = (argv[++i] || '').trim().toLowerCase();
     else if (a === '--cwd') opts.cwd = argv[++i] || process.cwd();
     else if (a === '--mode') opts.mode = argv[++i] || 'read-only';
     else if (a === '--review') opts.review = true;
@@ -43,6 +54,80 @@ function parseArgs(argv) {
     else if (a === '--check') opts.check = true;
   }
   return opts;
+}
+
+function parseEnvPolicy() {
+  const raw = (process.env.LOCAL_VERIFY_ALLOW_EXTERNAL_CLI || '').trim().toLowerCase();
+  if (!raw) return { forceDeny: false, allowed: [] };
+  if (DENY_TOKENS.has(raw)) return { forceDeny: true, allowed: [] };
+  const tokens = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (tokens.some((t) => t === 'all' || t === '*')) {
+    return { forceDeny: false, allowed: [...SUPPORTED_AGENTS] };
+  }
+  return {
+    forceDeny: false,
+    allowed: tokens.filter((t) => SUPPORTED_AGENTS.includes(t)),
+  };
+}
+
+function parseRepoConfigPolicy(cwd) {
+  const cfgPath = path.resolve(cwd, '.verify', 'config.json');
+  if (!fs.existsSync(cfgPath)) return [];
+  try {
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    const raw = cfg?.allowExternalCli;
+    if (raw === true) return [...SUPPORTED_AGENTS];
+    if (Array.isArray(raw)) {
+      const normalized = raw
+        .filter((x) => typeof x === 'string')
+        .map((x) => x.trim().toLowerCase());
+      if (normalized.some((x) => x === 'all' || x === '*')) return [...SUPPORTED_AGENTS];
+      return normalized.filter((x) => SUPPORTED_AGENTS.includes(x));
+    }
+    return [];
+  } catch {
+    // Malformed config fails closed
+    return [];
+  }
+}
+
+function evaluateExternalCliPolicy(agent, cwd) {
+  const envPolicy = parseEnvPolicy();
+  const repoAllowed = parseRepoConfigPolicy(cwd);
+
+  if (envPolicy.forceDeny) {
+    return {
+      allowed: false,
+      source: 'env-deny',
+      envPolicy,
+      repoAllowed,
+    };
+  }
+  if (envPolicy.allowed.includes(agent)) {
+    return {
+      allowed: true,
+      source: 'env',
+      envPolicy,
+      repoAllowed,
+    };
+  }
+  if (repoAllowed.includes(agent)) {
+    return {
+      allowed: true,
+      source: 'repo-config',
+      envPolicy,
+      repoAllowed,
+    };
+  }
+  return {
+    allowed: false,
+    source: 'default-deny',
+    envPolicy,
+    repoAllowed,
+  };
 }
 
 function quoteCmdArg(arg) {
@@ -125,9 +210,21 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
 
   if (opts.check) {
+    const envPolicy = parseEnvPolicy();
+    const repoAllowed = parseRepoConfigPolicy(opts.cwd);
     process.stdout.write(
       JSON.stringify(
-        { codex: detectCli('codex'), claude: detectCli('claude'), gh: detectCli('gh') },
+        {
+          codex: detectCli('codex'),
+          claude: detectCli('claude'),
+          gh: detectCli('gh'),
+          externalCliPolicy: {
+            defaultMode: 'subagent',
+            forceDeniedByEnv: envPolicy.forceDeny,
+            allowedByEnv: envPolicy.allowed,
+            allowedByConfig: repoAllowed,
+          },
+        },
         null,
         2
       ) + '\n'
@@ -135,9 +232,25 @@ function main() {
     return;
   }
 
-  if (!['codex', 'claude'].includes(opts.agent)) {
+  if (!SUPPORTED_AGENTS.includes(opts.agent)) {
     console.error('Error: --agent must be "codex" or "claude" (or pass --check)');
     process.exit(2);
+  }
+
+  const policy = evaluateExternalCliPolicy(opts.agent, opts.cwd);
+  if (!policy.allowed) {
+    const why =
+      policy.source === 'env-deny'
+        ? 'explicitly blocked by LOCAL_VERIFY_ALLOW_EXTERNAL_CLI'
+        : 'disabled by default (default mode is "subagent")';
+    console.error(
+      `Blocked: external CLI delegation ("${opts.agent}") is ${why}. ` +
+        `Use the host's native isolated subagent instead. ` +
+        `Only if the user explicitly requested "${opts.agent}", opt in via ` +
+        `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=${opts.agent} or ".verify/config.json" ` +
+        `("allowExternalCli": ["${opts.agent}"]). Never silently fall back to another external CLI.`
+    );
+    process.exit(3);
   }
 
   const prompt = opts.promptFile ? fs.readFileSync(opts.promptFile, 'utf8') : fs.readFileSync(0, 'utf8');

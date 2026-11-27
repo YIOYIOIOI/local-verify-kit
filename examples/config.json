@@ -2,11 +2,11 @@
   "profile": "full",
   "baseBranch": "main",
   "delegation": {
-    "verify-init": "ask",
-    "verify-run": "ask",
-    "diff-gate": "ask",
-    "isolated-review": "ask",
-    "verify-retro": "ask"
+    "verify-init": "self",
+    "verify-run": "subagent",
+    "diff-gate": "subagent",
+    "isolated-review": "subagent",
+    "verify-retro": "subagent"
   },
   "commitCheck": {
     "mode": "observe",

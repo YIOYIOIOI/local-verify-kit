@@ -5,30 +5,30 @@ description: >-
   3-round failure fuse, zero tolerance for flaky workarounds, and writing fresh evidence to
   .verify/last-run.json. Activate only when explicitly requested by the user OR when the repo's
   .verify/config.json enables profile "lite"/"full" (or includes "verify-run" in modules); stay
-  silent on simple repos with no config. Supports delegating to codex, claude, or a clean subagent.
+  silent on simple repos with no config. Defaults to a clean isolated subagent (or current agent);
+  external CLIs (codex/claude) are strict explicit opt-in only.
 ---
 
 # verify-run
 
 Execute fast checks and real end-to-end smoke verification against live changes, producing objective evidence. Completely standalone — does not require any other skill to have run first.
 
-## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
+## Step 0: Profile Opt-In Gate & Executor Selection (Default: `subagent`)
 
 1. **HARD STOP — Opt-In Profile Check** (run before any build/test/smoke command):
    - Read `<repo>/.verify/config.json` if it exists. If `targets` is defined (e.g., `private` vs `public` remote, or `dev` vs `release`), resolve the active `profile`/`modules` from the matching `targets.<name>` for the current task (defaulting to top-level `profile`).
-   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `verify-run` directly without asking): **STOP immediately — do not execute any checks yet.** Ask the user in one brief question: (a) how this repo should run verification (`lite` smoke only / `full` / one-off `verify-run` without writing `.verify/` / `off` skip), and (b) which executor to use (`current agent` / `codex` / `claude` / clean subagent). Wait for their reply.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `verify-run` directly without asking): **STOP immediately — do not execute any checks yet.** Ask the user in one brief question how this repo should run verification (`lite` smoke only / `full` / one-off `verify-run` without writing `.verify/` / `off` skip; executor defaults to `subagent`). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` (or a custom `"modules"` list excluding `"verify-run"`): stay silent unless the user explicitly invoked `verify-run`.
    - Never auto-chain into `diff-gate`, `isolated-review`, or other modules after finishing unless asked.
-2. **Execution Routing**: check `delegation["verify-run"]` in `.verify/config.json` (default `"ask"`). If the user did not specify an executor and the setting is `"ask"`, ask concisely before running:
-   1. **Current agent**
-   2. **Local `codex` CLI** (great for independent execution and saving main context):
-      Write a concise brief (repo path, changed files, project `verify/SKILL.md` instructions, and required evidence format) to `.verify/tmp-verify-prompt.md` (or OS temp dir if `.verify/` doesn't exist), then run:
-      - Via bundled helper (if present): `node "../../scripts/delegate.mjs" --agent codex --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Or direct CLI fallback: `codex exec -C "<repo>" -s workspace-write -o <outFile> - < <promptFile>`
-   3. **Local `claude` CLI**:
-      - Via bundled helper: `node "../../scripts/delegate.mjs" --agent claude --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Or direct CLI fallback: `claude -p --max-turns 12 < <promptFile>`
-   4. **Clean isolated subagent** (fresh context without implementation bias)
+2. **Execution Routing — Default Mode is `subagent` (External CLIs Strictly Opt-In)**:
+   Check `delegation["verify-run"]` in `<repo>/.verify/config.json` (**default: `"subagent"`**). If set to `"ask"`, ask concisely before running (recommending `subagent` or `self`).
+   1. **Clean isolated subagent (Default)** — fresh context without implementation bias and zero external CLI quota consumption.
+   2. **Current agent (`self`)** — direct local run, or fallback when the host does not support subagents.
+   3. **External CLI (`codex` or `claude`) — Strict Explicit Opt-In Only**:
+      - **NEVER** choose an external CLI on your own, **NEVER** write `"codex"`, `"claude"`, or `"allowExternalCli"` into `.verify/config.json` unless the user explicitly named that CLI, and **NEVER** silently fall back from one external CLI to another on failure (stop and report or fall back to `subagent`).
+      - Write a concise brief (repo path, changed files, project `verify/SKILL.md` instructions, and required evidence format) to `.verify/tmp-verify-prompt.md` (or OS temp dir if `.verify/` doesn't exist), then invoke exclusively through the gated helper `scripts/delegate.mjs` (fail-closed by default unless explicitly opted in):
+        - `codex`: `node "../../scripts/delegate.mjs" --agent codex --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+        - `claude`: `node "../../scripts/delegate.mjs" --agent claude --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
 
 > When delegating externally, inspect the returned report to confirm real commands, exit codes, and fresh output are present — never accept unverified "looks good" claims.
 
@@ -67,4 +67,4 @@ Only if `<repo>/.verify/` already exists (or the user asks to track verification
   "evidenceSummary": "<concise objective evidence>"
 }
 ```
-If the project uses `profile: "full"` (or `commitCheck.mode !== "off"`), remind before committing to include a verification trailer (e.g., `Verified-by: verify-run(codex)` or `Verified-by: none (<reason>)`).
+If the project uses `profile: "full"` (or `commitCheck.mode !== "off"`), remind before committing to include a verification trailer (e.g., `Verified-by: verify-run(subagent)` or `Verified-by: none (<reason>)`).

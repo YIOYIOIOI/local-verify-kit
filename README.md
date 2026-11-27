@@ -37,7 +37,7 @@ Most agent verification setups fall into one of two traps:
 **Local Verify Kit** takes a different approach:
 - **Strictly modular**: 5 standalone skills (plus 1 thin optional router). Use a single module or combine them — nothing forces a rigid pipeline.
 - **Brings cloud guardrails down to local**: Base-branch `REVIEW.md` isolation (`git show main:REVIEW.md`), `HEAD` SHA binding, and git-history rule retrospectives run 100% locally with **zero API keys**.
-- **Cross-agent delegation as a first-class workflow**: Every execution skill asks whether to run locally or delegate to another agent (e.g., write code with one agent, delegate `verify-run` or `isolated-review` to **Codex**, **Claude**, or a clean subagent).
+- **Safe `subagent`-first delegation**: Independent verification, diff audits, and reviews default to the host's native isolated **`subagent`** (zero surprise external CLI quota burn). External CLIs (**Codex**, **Claude**) remain supported as strict explicit opt-in via a fail-closed `scripts/delegate.mjs` gate.
 - **Zero hard-implanted hooks**: No fragile `PreToolUse` hook injection or harness lock-in. Verification readiness and commit stamps work via lightweight skill reminders and a standalone CLI script.
 - **Reuse first, never duplicate**: Explicitly complements mature skills like [`obra/superpowers`](https://github.com/obra/superpowers) (planning, TDD, debugging, worktrees) and browser tools (`chrome-devtools`, Playwright, `browser-use`) instead of rewriting them.
 
@@ -68,14 +68,14 @@ flowchart LR
 
 ## Modular Skills
 
-| Skill | Standalone Purpose | Brings Cloud Guardrail Locally | Typical Cross-Agent Delegation |
+| Skill | Standalone Purpose | Brings Cloud Guardrail Locally | Default Executor (External CLI Opt-In) |
 | :--- | :--- | :--- | :--- |
-| **[`verify-init`](./skills/verify-init/SKILL.md)** | Inspect repo (Surface / Run / Drive / Observe), generate and live stress-test a project-local `verify/SKILL.md` | Non-destructive onboarding for new & mid-flight repos | Current agent (default) |
-| **[`verify-run`](./skills/verify-run/SKILL.md)** | Run local fast checks + real end-to-end smoke verification, enforce a **3-round failure fuse**, reject `.skip`/`sleep` workarounds, write `.verify/last-run.json` | Objective runtime proof before pushing to CI | Often delegated to **`codex`** or clean subagent |
-| **[`diff-gate`](./skills/diff-gate/SKILL.md)** | Evaluate **only** the reliability checklist items whose trigger matches the current `git diff`; audit verification stamps via skill reminders | Targeted outage prevention without prompt bloat | Current agent or read-only `codex` / `claude` |
-| **[`isolated-review`](./skills/isolated-review/SKILL.md)** | Physically read `REVIEW.md` **only from the default branch** (`git show main:REVIEW.md`), detect rule tampering, bind to exact `HEAD` SHA, build progressively across rounds, classify `[Important]` / `[Nit]` / `[Pre-existing]` | Pulls cloud PR review isolation locally (zero API key) + optional `gh pr comment` | **Strongly recommends a different agent** (`codex` ↔ `claude` / host) |
-| **[`verify-retro`](./skills/verify-retro/SKILL.md)** | Scan recent `git log` reverts/hotfixes, hunt `.skip`/`sleep` shortcuts in test files, audit rule file bloat, falsify candidate rules with a skeptic agent before human sign-off | Pulls post-merge evaluation & rule pruning locally | Local scanner + independent falsifier (`codex` / `claude`) |
-| **[`verify-flow`](./skills/verify-flow/SKILL.md)** | Ultra-thin, non-mandatory menu that routes to existing mature skills first and lets you pick one standalone module | Keeps workflows unbundled | Passes through your chosen executor |
+| **[`verify-init`](./skills/verify-init/SKILL.md)** | Inspect repo (Surface / Run / Drive / Observe), generate and live stress-test a project-local `verify/SKILL.md` | Non-destructive onboarding for new & mid-flight repos | Current agent (`self`, default) |
+| **[`verify-run`](./skills/verify-run/SKILL.md)** | Run local fast checks + real end-to-end smoke verification, enforce a **3-round failure fuse**, reject `.skip`/`sleep` workarounds, write `.verify/last-run.json` | Objective runtime proof before pushing to CI | Clean isolated **`subagent`** (or `self`) |
+| **[`diff-gate`](./skills/diff-gate/SKILL.md)** | Evaluate **only** the reliability checklist items whose trigger matches the current `git diff`; audit verification stamps via skill reminders | Targeted outage prevention without prompt bloat | Clean isolated **`subagent`** (read-only) |
+| **[`isolated-review`](./skills/isolated-review/SKILL.md)** | Physically read `REVIEW.md` **only from the default branch** (`git show main:REVIEW.md`), detect rule tampering, bind to exact `HEAD` SHA, build progressively across rounds, classify `[Important]` / `[Nit]` / `[Pre-existing]` | Pulls cloud PR review isolation locally (zero API key) + optional `gh pr comment` | Clean isolated **`subagent`** (external `codex`/`claude` opt-in only) |
+| **[`verify-retro`](./skills/verify-retro/SKILL.md)** | Scan recent `git log` reverts/hotfixes, hunt `.skip`/`sleep` shortcuts in test files, audit rule file bloat, falsify candidate rules with a skeptic agent before human sign-off | Pulls post-merge evaluation & rule pruning locally | Local scanner + isolated **`subagent`** skeptic |
+| **[`verify-flow`](./skills/verify-flow/SKILL.md)** | Ultra-thin, non-mandatory menu that routes to existing mature skills first and lets you pick one standalone module | Keeps workflows unbundled | Defaults to **`subagent`** |
 
 ---
 
@@ -125,27 +125,27 @@ You do **not** need to install skills separately into every repository — insta
 
 ---
 
-## Cross-Agent Delegation
+## Cross-Agent Delegation (Default: `subagent`, External CLIs Fail-Closed)
 
-Writing code and reviewing/verifying it in the exact same conversation creates confirmation bias. Every execution skill starts with an explicit **Execution Routing** step:
+Writing code and reviewing/verifying it in the exact same conversation creates confirmation bias. Every execution skill defaults to a **clean isolated `subagent`** in your current host so you get independent verification with **zero surprise external CLI quota consumption**:
 
-1. If `<repo>/.verify/config.json` sets `"delegation": { "<skill>": "ask" }` (the default), the skill asks you who should run it:
-   - **Current agent**
-   - **Clean isolated subagent**
-   - **Local `codex` CLI** (runs in `-s read-only` for audits/reviews, `-s workspace-write` for smoke runs)
-   - **Local `claude` CLI** (runs non-interactively via `claude -p` with restricted read-only tools for audits/reviews)
-2. To pin your preferred routing per repository, drop an optional `.verify/config.json` (see [`examples/config.json`](./examples/config.json)):
+1. **Default (`subagent`)**: `verify-run`, `diff-gate`, `isolated-review`, and `verify-retro` run in a fresh host-native subagent (`self` fallback only if the host has no subagent support).
+2. **External CLIs (`codex` / `claude`) — strict explicit opt-in**:
+   - `scripts/delegate.mjs` is **fail-closed by default** (exits with code `3` and points back to `subagent`).
+   - Agents must never auto-select external CLIs, persist them into `.verify/config.json` unasked, or silently fall back from one external CLI to another when one fails.
+   - Only when you explicitly want external CLI delegation, opt in via either `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=codex` (or `none` as a global kill-switch) or `"allowExternalCli": ["codex"]` in `.verify/config.json`.
+3. Recommended starter `.verify/config.json` (see [`examples/config.json`](./examples/config.json)):
 
 ```json
 {
   "profile": "full",
   "baseBranch": "main",
   "delegation": {
-    "verify-init": "ask",
-    "verify-run": "codex",
-    "diff-gate": "ask",
-    "isolated-review": "claude",
-    "verify-retro": "ask"
+    "verify-init": "self",
+    "verify-run": "subagent",
+    "diff-gate": "subagent",
+    "isolated-review": "subagent",
+    "verify-retro": "subagent"
   },
   "commitCheck": {
     "mode": "observe",
@@ -156,9 +156,9 @@ Writing code and reviewing/verifying it in the exact same conversation creates c
 }
 ```
 
-Check which local CLIs are available on your machine anytime:
+Check local CLIs and active external-CLI policy anytime:
 ```bash
-node scripts/delegate.mjs --check
+node scripts/delegate.mjs --check --cwd <repo>
 ```
 
 ---

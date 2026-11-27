@@ -18,11 +18,11 @@ Inspect the current repository and scaffold a fast, reliable, project-specific `
    - **`lite`** (Recommended for small/medium projects & personal tools): scaffolds ONLY `.agents/skills/verify/SKILL.md` + a minimal `.verify/config.json` (`{ "profile": "lite" }`). Skips `REVIEW.md`, diff checklists, and heavy PR review flows.
    - **`full`** (Recommended for core production/team repositories): scaffolds `verify/SKILL.md`, `.verify/config.json` (`{ "profile": "full", ... }`), `REVIEW.md`, and a starter `.verify/reliability-checklist.json`.
    - *(Note: repositories without `.verify/config.json` remain implicitly `off` — zero noise unless explicitly invoked.)*
-2. **Execution Routing**: check `<repo>/.verify/config.json` under `delegation["verify-init"]` (default `"ask"`). If no executor was specified, ask concisely whether to run via:
-   1. **Current agent** (Recommended for initial repo discovery)
-   2. **Clean isolated subagent** (fresh context window)
-   3. **Local `codex` CLI** (`codex exec -C "<repo>" -s workspace-write -` or `node "../../scripts/delegate.mjs" --agent codex --mode workspace-write ...`)
-   4. **Local `claude` CLI** (`claude -p` or `node "../../scripts/delegate.mjs" --agent claude --mode workspace-write ...`)
+2. **Execution Routing (Default: `self` / `subagent`; External CLIs Strictly Opt-In)**:
+   Check `<repo>/.verify/config.json` under `delegation["verify-init"]` (**default: `"self"`**).
+   1. **Current agent (`self`, Default)** — best for initial repo discovery.
+   2. **Clean isolated subagent (`subagent`)** — fresh context window with zero external CLI quota consumption.
+   3. **External CLI (`codex` or `claude`) — Strict Explicit Opt-In Only**: use only when the user explicitly names that CLI in the current request, exclusively via `node "../../scripts/delegate.mjs" --agent <codex|claude> --mode workspace-write --cwd "<repo>" --prompt-file <promptFile> --out <outFile>` (never silently fall back between external CLIs).
 
 ## Step 1: Reuse First & Mid-Project Detection
 
@@ -43,9 +43,9 @@ Read repo manifests and docs (`package.json`, `pyproject.toml`, `Cargo.toml`, `g
 
 1. **Always created (`lite` & `full`)**:
    - `.agents/skills/verify/SKILL.md` (and optionally mirror/link to `.claude/skills/verify/SKILL.md` if the repo uses `.claude/`), covering cheap checks first, real startup + 2–5 core user flows + cleanup, fresh evidence only, no `.skip`/hardcoded `sleep`/blind retries, and a 3-round failure fuse.
-   - `.verify/config.json`:
-     - For **`lite`**: `{ "profile": "lite", "delegation": { "verify-run": "ask" } }`
-     - For **`full`**: `{ "profile": "full", "baseBranch": "main", "delegation": { ... }, "commitCheck": { "mode": "observe", ... } }`
+   - `.verify/config.json` (**never write `"codex"`, `"claude"`, or `"allowExternalCli"` unless the user explicitly requested that external CLI**):
+     - For **`lite`**: `{ "profile": "lite", "delegation": { "verify-run": "subagent" } }`
+     - For **`full`**: `{ "profile": "full", "baseBranch": "main", "delegation": { "verify-init": "self", "verify-run": "subagent", "diff-gate": "subagent", "isolated-review": "subagent", "verify-retro": "subagent" }, "commitCheck": { "mode": "observe", ... } }`
 2. **Created only for `full` profile** (if missing):
    - `REVIEW.md` (5–10 high-signal repo invariants; remind the user to merge `REVIEW.md` onto the default branch `main` so `isolated-review` can enforce tamper-proof base-branch isolation)
    - `.verify/reliability-checklist.json` (2–3 concrete diff-triggered items)

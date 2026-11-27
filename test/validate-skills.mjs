@@ -62,6 +62,31 @@ const forbiddenHostPatterns = [
   { regex: /\/Users\/[a-z0-9_-]+\//i, label: 'hardcoded macOS user path' },
 ];
 
+const forbiddenSkillBypassPatterns = [
+  { regex: /\bclaude\s+-p\b/, label: 'raw direct "claude -p" fallback (must route through delegate.mjs)' },
+  { regex: /\bcodex\s+exec\b/, label: 'raw direct "codex exec" fallback (must route through delegate.mjs)' },
+];
+
+// 2b. Enforce safe subagent/self defaults in starter example configs (never codex/claude)
+for (const rel of ['examples/config.json', 'examples/config.lite.json']) {
+  const abs = path.join(ROOT, rel);
+  if (!fs.existsSync(abs)) continue;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(abs, 'utf8'));
+    const del = cfg?.delegation || {};
+    for (const [k, v] of Object.entries(del)) {
+      if (['codex', 'claude'].includes(String(v).toLowerCase())) {
+        fail(`${rel} sets delegation["${k}"]="${v}" — starter configs must default to subagent/self`);
+      }
+    }
+    if (cfg?.allowExternalCli) {
+      fail(`${rel} must not enable allowExternalCli by default`);
+    }
+  } catch {
+    // Already reported in JSON validation above
+  }
+}
+
 for (const dir of skillDirs) {
   const mdPath = path.join(skillsDir, dir, 'SKILL.md');
   if (!fs.existsSync(mdPath)) {
@@ -86,6 +111,12 @@ for (const dir of skillDirs) {
   }
 
   for (const check of forbiddenHostPatterns) {
+    if (check.regex.test(content)) {
+      fail(`skills/${dir}/SKILL.md contains ${check.label}`);
+    }
+  }
+
+  for (const check of forbiddenSkillBypassPatterns) {
     if (check.regex.test(content)) {
       fail(`skills/${dir}/SKILL.md contains ${check.label}`);
     }

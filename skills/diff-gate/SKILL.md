@@ -11,21 +11,22 @@ description: >-
 
 Evaluate only the reliability checklist rules triggered by the active `git diff`, and run a lightweight pre-commit verification readiness reminder without injecting harness-specific hooks.
 
-## Step 0: Profile Opt-In Gate & Cross-Agent Delegation
+## Step 0: Profile Opt-In Gate & Executor Selection (Default: `subagent`)
 
 1. **HARD STOP — Opt-In Profile Check** (run before any diff inspection or commit check):
    - Read `<repo>/.verify/config.json` if present. If `targets` is defined (e.g., `private` vs `public` remote, or `dev` vs `release`), resolve `profile`/`modules` from the matching `targets.<name>` for the current push/PR target (defaulting to top-level `profile`).
-   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `diff-gate` directly without asking): **STOP immediately — do not run checks yet.** Ask the user in one brief question whether this repo should use `lite` (skip `diff-gate`), `full`, a one-off `diff-gate` without writing `.verify/`, or `off`, plus which executor (`current agent` / `codex` / `claude` / subagent). Wait for their reply.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `diff-gate` directly without asking): **STOP immediately — do not run checks yet.** Ask the user in one brief question whether this repo should use `lite` (skip `diff-gate`), `full`, a one-off `diff-gate` without writing `.verify/`, or `off` (default executor is `subagent`). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"diff-gate"` in `"modules"`): skip silently unless the user explicitly invoked `diff-gate`.
    - Never auto-chain into `isolated-review` or other modules after finishing unless asked.
-2. **Execution Routing**: if the user is only toggling `profile` or `commitCheck.mode` (`off` / `observe` / `enforce`), handle directly. Before running a diff checklist audit, check `delegation["diff-gate"]` (default `"ask"`). If `"ask"`, ask concisely who should inspect the diff:
-   1. **Current agent**
-   2. **Clean isolated subagent** (read-only)
-   3. **Local `codex` CLI** (read-only sandbox):
-      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Direct fallback: `codex exec -C "<repo>" -s read-only - < <promptFile>`
-   4. **Local `claude` CLI** (read-only):
-      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+2. **Execution Routing — Default Mode is `subagent` (External CLIs Strictly Opt-In)**:
+   If the user is only toggling `profile` or `commitCheck.mode` (`off` / `observe` / `enforce`), handle directly. Before running a diff checklist audit, check `delegation["diff-gate"]` in `<repo>/.verify/config.json` (**default: `"subagent"`**).
+   1. **Clean isolated subagent (Default, read-only)** — fresh read-only context with zero external CLI quota consumption.
+   2. **Current agent (`self`)** — direct run or fallback when the host does not support subagents.
+   3. **External CLI (`codex` or `claude`) — Strict Explicit Opt-In Only**:
+      - **NEVER** select an external CLI automatically, **NEVER** write `"codex"`, `"claude"`, or `"allowExternalCli"` into `.verify/config.json` unasked, and **NEVER** silently fall back from one external CLI to another on failure (stop or fall back to `subagent`).
+      - Invoke exclusively through the gated helper `scripts/delegate.mjs` (fail-closed by default unless explicitly opted in):
+        - `codex`: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+        - `claude`: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
 
 ## Step 1: Load Diff & Base Checklist (Mid-Project Safe)
 
@@ -53,6 +54,6 @@ Instead of hard-implanting a harness hook, remind before `git commit`:
    - `profile: "lite"`: defaults to checking only `verify-run`.
    - `observe` (default): logs would-be blocks to `.verify/commit-check.log.jsonl` without blocking.
    - `enforce`: flags missing fresh evidence unless `[skip-verify: <reason>]` is present or the 2-block session escape hatch is reached.
-2. Remind the agent/user to append a verification trailer to the commit message (`Verified-by: verify-run(codex), diff-gate(self)` or `Verified-by: none (<reason>)`).
+2. Remind the agent/user to append a verification trailer to the commit message (`Verified-by: verify-run(subagent), diff-gate(subagent)` or `Verified-by: none (<reason>)`).
 3. Only if `<repo>/.verify/` already exists, save `.verify/last-diff-gate.json` (`timestamp`, `headSha`, `executor`, `status`, `matchedIds`, `risks`).
 4. Only if a team explicitly requests OS/Git-level hard gating, explain how to call `commit-check.mjs` from standard `.git/hooks/pre-commit`.

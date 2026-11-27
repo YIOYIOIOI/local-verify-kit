@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3] - 2026-11-27
+
+### Changed
+- Set **`subagent`** (host-native clean isolated subagent) as the default delegation mode across all skills (`isolated-review`, `verify-run`, `diff-gate`, `verify-retro`, `verify-flow`, `verify-init`) and starter config templates (`examples/config.json`, `examples/config.lite.json`).
+- Made external CLI delegation (`codex` / `claude`) strict explicit opt-in only: removed raw shell bypass fallbacks (`claude -p`, `codex exec`) from `SKILL.md` files and explicitly forbade auto-selecting, persisting, or silently falling back across external CLIs.
+
+### Added
+- Fail-closed policy gate in `scripts/delegate.mjs` (zero hooks, 100% cross-harness): blocks `codex`/`claude` with exit code `3` by default unless explicitly opted in via `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI` or `.verify/config.json` (`"allowExternalCli"`), plus `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=none` global kill-switch.
+- Regression checks in `test/validate-skills.mjs` (forbidding raw CLI bypass fallbacks in skills and external CLI defaults in starter templates) and unit tests in `test/scripts.test.mjs` covering `delegate.mjs` fail-closed enforcement.
+
 ## [0.2.2] - 2026-11-24
 
 ### Added

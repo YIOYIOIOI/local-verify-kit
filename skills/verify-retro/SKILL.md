@@ -12,18 +12,18 @@ description: >-
 
 Audit how well your local verification layer is catching real bugs using local git history — zero external eval platform or API key required. Works standalone and is also an ideal first step when adopting this kit on an existing repository.
 
-## Step 0: Profile Opt-In Gate & Cross-Agent Falsifier Selection
+## Step 0: Profile Opt-In Gate & Falsifier Selection (Default: `subagent`)
 
-1. **HARD STOP — Explicit Opt-In Only**: never auto-run retrospectives on everyday edits or simple/`lite` repos. If `.verify/config.json` is missing and the user did not explicitly instruct you to run `verify-retro` immediately, **STOP and ask** before running `retro-scan.mjs` or proposing rule edits (also confirming whether to delegate falsification to `codex` / `claude` / subagent). Never auto-chain into other verification modules unless asked.
+1. **HARD STOP — Explicit Opt-In Only**: never auto-run retrospectives on everyday edits or simple/`lite` repos. If `.verify/config.json` is missing and the user did not explicitly instruct you to run `verify-retro` immediately, **STOP and ask** before running `retro-scan.mjs` or proposing rule edits (falsification defaults to a clean isolated `subagent`). Never auto-chain into other verification modules unless asked.
 2. Run the deterministic local scanner first with the current agent to collect objective git/test metrics.
-3. Before **challenging candidate rules (falsification)** or proposing rule edits, check `<repo>/.verify/config.json` under `delegation["verify-retro"]` (default `"ask"`). If `"ask"`, ask concisely who should serve as the skeptical falsifier:
-   1. **Local `codex` CLI (read-only sandbox — Recommended as an independent skeptic)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Direct fallback: `codex exec -C "<repo>" -s read-only - < <promptFile>`
-   2. **Local `claude` CLI (read-only)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-   3. **Clean isolated subagent**
-   4. **Current agent**
+3. Before **challenging candidate rules (falsification)** or proposing rule edits, check `<repo>/.verify/config.json` under `delegation["verify-retro"]` (**default: `"subagent"`**):
+   1. **Clean isolated subagent (Default — independent skeptic)** — fresh read-only context in the current host with zero external CLI quota consumption.
+   2. **Current agent (`self`)** — fallback only when the host does not support subagents.
+   3. **External CLI (`codex` or `claude`) — Strict Explicit Opt-In Only**:
+      - **NEVER** select an external CLI automatically, **NEVER** write `"codex"`, `"claude"`, or `"allowExternalCli"` into `.verify/config.json` unasked, and **NEVER** silently fall back from one external CLI to another on failure (stop or fall back to `subagent`).
+      - Invoke exclusively through the gated helper `scripts/delegate.mjs` (fail-closed by default unless explicitly opted in):
+        - `codex`: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
+        - `claude`: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
 
 ## Step 1: Collect Objective Local Signals
 

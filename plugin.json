@@ -1,15 +1,15 @@
 {
   "name": "local-verify-kit",
   "displayName": "Local Verify Kit",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "author": "YIOYIOIOI",
   "homepage": "https://github.com/YIOYIOIOI/local-verify-kit",
   "repository": "https://github.com/YIOYIOIOI/local-verify-kit",
-  "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and git-history retrospectives with cross-agent delegation (Codex, Claude, or subagents).",
+  "description": "Modular, local-first verification skills for AI coding agents: E2E smoke testing, diff-triggered reliability checklists, base-branch isolated code review, and git-history retrospectives. Defaults to host-native isolated subagents; external CLIs (Codex/Claude) are explicit opt-in only.",
   "logo": "assets/logo.png",
   "suggestedPrompts": [
     "Use verify-init to inspect this repo and scaffold a stress-tested project verify skill",
-    "Use verify-run to run local fast checks and end-to-end smoke verification (or delegate to codex)",
-    "Use isolated-review to review this branch against base-branch REVIEW.md with an independent agent"
+    "Use verify-run to run local fast checks and end-to-end smoke verification (defaults to isolated subagent)",
+    "Use isolated-review to review this branch against base-branch REVIEW.md with an independent subagent"
   ]
 }

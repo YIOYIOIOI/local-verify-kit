@@ -34,16 +34,16 @@ When the user's need is already well-served by mature installed skills or host f
 
 ## Independent Modules in This Kit (Invoke Any One Standalone)
 
-| Skill | Purpose | Typical Cross-Agent Delegation |
+| Skill | Purpose | Default Executor (External CLI Opt-In Only) |
 | :--- | :--- | :--- |
-| `verify-init` | Choose `lite`/`full` profile, inspect repo, scaffold & stress-test project `verify/SKILL.md` | Current agent (default) |
-| `verify-run` | Fast local checks + real E2E smoke test + 3-round fuse + `.verify/last-run.json` | Often delegated to **`codex`** or clean subagent |
-| `diff-gate` | Check only diff-matched reliability checklist items + soft pre-commit readiness/stamps | Current agent or read-only `codex` / `claude` |
-| `isolated-review` | Base-branch `REVIEW.md` isolation + `HEAD` SHA binding + progressive graded review | **Strongly recommend a different agent** (`codex` ↔ `claude` / host) |
-| `verify-retro` | Scan git reverts, hotfixes, `.skip`/`sleep` tests, rule bloat + falsified rule updates | Local scanner + independent falsifier (`codex` / `claude`) |
+| `verify-init` | Choose `lite`/`full` profile, inspect repo, scaffold & stress-test project `verify/SKILL.md` | Current agent (`self`, default) |
+| `verify-run` | Fast local checks + real E2E smoke test + 3-round fuse + `.verify/last-run.json` | Clean isolated **`subagent`** (or `self`) |
+| `diff-gate` | Check only diff-matched reliability checklist items + soft pre-commit readiness/stamps | Clean isolated **`subagent`** (read-only) |
+| `isolated-review` | Base-branch `REVIEW.md` isolation + `HEAD` SHA binding + progressive graded review | Clean isolated **`subagent`** (read-only; external `codex`/`claude` only if explicitly named by user) |
+| `verify-retro` | Scan git reverts, hotfixes, `.skip`/`sleep` tests, rule bloat + falsified rule updates | Local scanner + isolated **`subagent`** skeptic |
 
 ## Routing Steps
 
 1. Check `<repo>/.verify/config.json` (if any) and respect the repo's profile (`off` / `lite` / `full`). If the user wants to switch profiles, update `.verify/config.json` (or remove it to return to `off`).
 2. Recommend only the 1–2 standalone skills relevant to what the user is doing right now (or route directly to an existing mature skill).
-3. Confirm whether the user wants the current agent or another agent (`codex`, `claude`, or an isolated subagent) to run that module, then hand off directly to that skill.
+3. Default delegated verification/review steps to a clean isolated **`subagent`** in the current host (fallback `self` if subagents are unavailable). Never select, persist, or auto-fallback to external CLIs (`codex` / `claude`) unless the user explicitly names one.

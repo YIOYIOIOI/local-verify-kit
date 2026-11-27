@@ -4,34 +4,33 @@ description: >-
   Perform a local base-branch-isolated code review with zero cloud API keys: reads REVIEW.md
   strictly from the default base branch, flags rule tampering, binds results to the exact HEAD
   commit SHA, builds progressively on prior review rounds, classifies findings as
-  Important/Nit/Pre-existing, and strongly recommends cross-agent delegation (codex, claude,
-  or a clean subagent). Activate only when explicitly requested by the user OR when
-  .verify/config.json enables profile "full" (or includes "isolated-review" in modules); never
-  auto-trigger on simple or "lite" repos.
+  Important/Nit/Pre-existing, and defaults to a clean isolated subagent in the current host
+  (external CLIs like codex/claude are strict explicit opt-in only). Activate only when
+  explicitly requested by the user OR when .verify/config.json enables profile "full" (or
+  includes "isolated-review" in modules); never auto-trigger on simple or "lite" repos.
 ---
 
 # isolated-review
 
 Bring isolated, tamper-resistant code review into local workflows with zero API keys. Works completely standalone without requiring prior skills.
 
-## Step 0: Profile Opt-In Gate & Cross-Agent Reviewer Selection
+## Step 0: Profile Opt-In Gate & Reviewer Selection (Default: `subagent`)
 
 1. **HARD STOP — Opt-In Profile Check** (run before reading diffs or launching any reviewer):
    - Read `<repo>/.verify/config.json` if present. If `targets` is defined (e.g., `private` = `lite`, `public` = `full`), resolve `profile`/`modules` from the matching `targets.<name>` for the current push/PR target — skip silently when targeting a `lite`/`off` target (such as a private dev repo) unless the user explicitly requested `isolated-review`.
-   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `isolated-review` directly without asking): **STOP immediately — do not run any review yet.** Ask the user in one brief question whether this repo should use `lite` (skip independent pre-PR review), `full`, a one-off `isolated-review` without writing `.verify/`, or `off`, plus which reviewer (`codex` / `claude` / clean subagent / current agent). Wait for their reply.
+   - **If `.verify/config.json` is missing** (and the user did not explicitly tell you to run `isolated-review` directly without asking): **STOP immediately — do not run any review yet.** Ask the user in one brief question whether this repo should use `lite` (skip independent pre-PR review), `full`, a one-off `isolated-review` without writing `.verify/`, or `off` (default reviewer is a clean isolated `subagent`). Wait for their reply.
    - **If `.verify/config.json` exists** with `"profile": "off"` or `"lite"` (without `"isolated-review"` in `"modules"`): skip silently unless the user explicitly invoked `isolated-review`.
    - Never auto-chain into other verification modules before or after this review unless asked.
-2. **Execution Routing (Cross-Agent Reviewer Recommended)**:
-   Reviewing code inside the same conversation that wrote it introduces confirmation bias. Check `delegation["isolated-review"]` (default `"ask"`). If no reviewer was named and config is `"ask"`, ask concisely who should act as reviewer:
-   1. **Local `codex` CLI (read-only sandbox — Recommended when another agent wrote the code)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Native review mode: `node "../../scripts/delegate.mjs" --agent codex --review --base <baseBranch> --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Direct fallback: `codex exec review --base <baseBranch> - < <promptFile>`
-   2. **Local `claude` CLI (read-only tools — Recommended when Codex wrote the code)**:
-      - Helper: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
-      - Direct fallback: `claude -p --allowedTools "Read,Glob,Grep,Bash(git diff *),Bash(git show *),Bash(git log *)" < <promptFile>`
-   3. **Clean isolated subagent** (fresh read-only context)
-   4. **Current agent** (only for quick sanity checks)
+2. **Execution Routing — Default Mode is `subagent` (External CLIs Strictly Opt-In)**:
+   Reviewing code inside the same conversation that wrote it introduces confirmation bias. Check `delegation["isolated-review"]` in `<repo>/.verify/config.json` (**default: `"subagent"`**).
+   1. **Clean isolated subagent (Default & Recommended)** — launch a fresh read-only subagent in the current host with zero shared implementation context and zero external CLI quota consumption.
+   2. **Current agent (`self`)** — fallback only when the host does not support subagents, or for quick sanity checks when requested.
+   3. **External CLI (`codex` or `claude`) — Strict Explicit Opt-In Only**:
+      - **NEVER** choose an external CLI on your own, and **NEVER** write `"codex"`, `"claude"`, or `"allowExternalCli"` into `.verify/config.json` unless the user explicitly named that CLI in their current request.
+      - **NEVER** silently fall back from one external CLI to another (e.g., if `codex` fails or hits a quota/model error, stop and report or fall back to `subagent` — never switch to `claude`).
+      - Always invoke exclusively through the gated helper `scripts/delegate.mjs` (fail-closed by default unless explicitly opted in via `allowExternalCli` or `LOCAL_VERIFY_ALLOW_EXTERNAL_CLI`; never bypass with raw shell CLI commands):
+        - `codex`: `node "../../scripts/delegate.mjs" --agent codex --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>` (or with `--review --base <baseBranch>`)
+        - `claude`: `node "../../scripts/delegate.mjs" --agent claude --mode read-only --cwd "<repo>" --prompt-file <promptFile> --out <outFile>`
 
 ## Step 1: Lock Base-Branch Rules & Commit SHA
 

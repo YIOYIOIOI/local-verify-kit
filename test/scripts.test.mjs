@@ -266,10 +266,96 @@ test('commit-check.mjs supports per-target overrides (e.g., private=lite vs publ
   }
 });
 
-test('delegate.mjs --check reports available CLIs as valid JSON', () => {
-  const raw = execFileSync('node', [DELEGATE, '--check'], { encoding: 'utf8' });
-  const data = JSON.parse(raw);
-  assert.equal(typeof data.codex, 'boolean');
-  assert.equal(typeof data.claude, 'boolean');
-  assert.equal(typeof data.gh, 'boolean');
+test('delegate.mjs --check reports available CLIs and default subagent policy as valid JSON', () => {
+  const repo = makeTempRepo();
+  try {
+    const env = { ...process.env };
+    delete env.LOCAL_VERIFY_ALLOW_EXTERNAL_CLI;
+    const raw = execFileSync('node', [DELEGATE, '--check', '--cwd', repo], { encoding: 'utf8', env });
+    const data = JSON.parse(raw);
+    assert.equal(typeof data.codex, 'boolean');
+    assert.equal(typeof data.claude, 'boolean');
+    assert.equal(typeof data.gh, 'boolean');
+    assert.equal(data.externalCliPolicy.defaultMode, 'subagent');
+    assert.deepEqual(data.externalCliPolicy.allowedByEnv, []);
+    assert.deepEqual(data.externalCliPolicy.allowedByConfig, []);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate.mjs fails closed by default and respects explicit opt-in & global deny kill-switch', () => {
+  const repo = makeTempRepo();
+  try {
+    const verifyDir = path.join(repo, '.verify');
+    fs.mkdirSync(verifyDir, { recursive: true });
+    const emptyPrompt = path.join(verifyDir, 'empty-prompt.md');
+    fs.writeFileSync(emptyPrompt, '   \n', 'utf8');
+
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.LOCAL_VERIFY_ALLOW_EXTERNAL_CLI;
+
+    // 1. Default deny (no config, no env) -> exit 3 for both claude and codex
+    for (const agent of ['claude', 'codex']) {
+      const res = spawnSync('node', [DELEGATE, '--agent', agent, '--cwd', repo, '--prompt-file', emptyPrompt], {
+        encoding: 'utf8',
+        env: cleanEnv,
+      });
+      assert.equal(res.status, 3, `expected exit 3 for default-blocked ${agent}`);
+      assert.match(res.stderr, /disabled by default/i);
+      assert.match(res.stderr, /subagent/i);
+    }
+
+    // 2. Legacy delegation="claude" WITHOUT allowExternalCli -> STILL blocked (exit 3)
+    fs.writeFileSync(
+      path.join(verifyDir, 'config.json'),
+      JSON.stringify({ profile: 'full', delegation: { 'isolated-review': 'claude' } })
+    );
+    const legacyBlocked = spawnSync(
+      'node',
+      [DELEGATE, '--agent', 'claude', '--cwd', repo, '--prompt-file', emptyPrompt],
+      { encoding: 'utf8', env: cleanEnv }
+    );
+    assert.equal(legacyBlocked.status, 3);
+
+    // 3. Explicit repo opt-in allowExternalCli=["codex"] -> passes policy for codex (hits exit 2 empty prompt without spawning CLI), still blocks claude (exit 3)
+    fs.writeFileSync(
+      path.join(verifyDir, 'config.json'),
+      JSON.stringify({ profile: 'full', allowExternalCli: ['codex'] })
+    );
+    const codexAllowed = spawnSync(
+      'node',
+      [DELEGATE, '--agent', 'codex', '--cwd', repo, '--prompt-file', emptyPrompt],
+      { encoding: 'utf8', env: cleanEnv }
+    );
+    assert.equal(codexAllowed.status, 2);
+    assert.match(codexAllowed.stderr, /empty prompt/i);
+
+    const claudeStillBlocked = spawnSync(
+      'node',
+      [DELEGATE, '--agent', 'claude', '--cwd', repo, '--prompt-file', emptyPrompt],
+      { encoding: 'utf8', env: cleanEnv }
+    );
+    assert.equal(claudeStillBlocked.status, 3);
+
+    // 4. Global env kill-switch LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=none overrides repo allowExternalCli
+    const killSwitch = spawnSync(
+      'node',
+      [DELEGATE, '--agent', 'codex', '--cwd', repo, '--prompt-file', emptyPrompt],
+      { encoding: 'utf8', env: { ...cleanEnv, LOCAL_VERIFY_ALLOW_EXTERNAL_CLI: 'none' } }
+    );
+    assert.equal(killSwitch.status, 3);
+    assert.match(killSwitch.stderr, /LOCAL_VERIFY_ALLOW_EXTERNAL_CLI/);
+
+    // 5. Explicit env opt-in LOCAL_VERIFY_ALLOW_EXTERNAL_CLI=claude passes policy (hits exit 2 empty prompt safely)
+    const envOptIn = spawnSync(
+      'node',
+      [DELEGATE, '--agent', 'claude', '--cwd', repo, '--prompt-file', emptyPrompt],
+      { encoding: 'utf8', env: { ...cleanEnv, LOCAL_VERIFY_ALLOW_EXTERNAL_CLI: 'claude' } }
+    );
+    assert.equal(envOptIn.status, 2);
+    assert.match(envOptIn.stderr, /empty prompt/i);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
